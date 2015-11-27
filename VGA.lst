@@ -1,0 +1,719 @@
+  Fri Nov 27 2015 12:11                                                Page 1
+
+    "VGA VGA.asm"
+    
+
+                     ***************************************
+                     **      WDC 65C816 Macro Assembler   **
+                     **                                   **
+                     **     Version 3.49.1- Feb  6 2006    **
+                     ***************************************
+
+     1                        ; File: VGA.asm
+     2                        ; 11/17/2015
+     3                        
+     4                          PW 80          ;Page Width (# of char/line)
+     5                          PL 60          ;Page Length for HP Laser
+     6                          INCLIST ON     ;Add Include files in Listing
+     7                        
+     8                        ;*********************************************
+     9                        ;Test for Valid Processor defined in -D option
+    10                        ;*********************************************
+    11                          IF USING_816
+    12                          ELSE
+    13                            EXIT  "Not Valid Processor: Use -DUSING_02, et
+                    c."
+    14                          ENDIF
+    15                        
+    16                          TITLE  "VGA VGA.asm"
+    17                          STTL
+    18                        
+    19             00007FC0   VIA_BASE:     EQU $7FC0		; base address o
+                    f VIA port on SXB
+    20             00007FC0   VIA_ORB:      EQU VIA_BASE
+    21             00007FC0   VIA_IRB:      EQU VIA_BASE
+    22             00007FC1   VIA_ORA:      EQU VIA_BASE+1
+    23             00007FC1   VIA_IRA:      EQU VIA_BASE+1
+    24             00007FC2   VIA_DDRB:     EQU VIA_BASE+2
+    25             00007FC3   VIA_DDRA:     EQU VIA_BASE+3
+    26             00007FC4   VIA_T1CLO:    EQU VIA_BASE+4
+    27             00007FC5   VIA_T1CHI:    EQU VIA_BASE+5
+    28             00007FC6   VIA_T1LLO:    EQU VIA_BASE+6
+    29             00007FC7   VIA_T1LHI:    EQU VIA_BASE+7
+    30             00007FC8   VIA_T2CLO:    EQU VIA_BASE+8
+    31             00007FC9   VIA_T2CHI:    EQU VIA_BASE+9
+    32             00007FCA   VIA_SR:       EQU VIA_BASE+10
+    33             00007FCB   VIA_ACR:      EQU VIA_BASE+11
+    34             00007FCC   VIA_PCR:      EQU VIA_BASE+12
+    35             00007FCD   VIA_IFR:      EQU VIA_BASE+13
+    36             00007FCE   VIA_IER:      EQU VIA_BASE+14
+    37             00007FCF   VIA_ORANH:    EQU VIA_BASE+15
+    38             00007FCF   VIA_IRANH:    EQU VIA_BASE+15
+    39                        
+    40             00007F00   VGA_BASE      EQU $7F00		; base address o
+                    f VGA port on SXB
+    41             00007F00   VGA_PRINT     EQU VGA_BASE
+    42             00007F01   VGA_COL       EQU VGA_BASE+$01
+    43             00007F02   VGA_ROW       EQU VGA_BASE+$02
+    44             00007F03   VGA_ROW_COLOR EQU VGA_BASE+$03
+    45             00007F04   VGA_ROW_BACK  EQU VGA_BASE+$04
+    46             00007F05   VGA_AUTO_INC  EQU VGA_BASE+$05
+  Fri Nov 27 2015 12:11                                                Page 2
+
+    "VGA VGA.asm"
+    
+
+    47             00007F06   VGA_FILL_CHAR EQU VGA_BASE+$06
+    48             00007F07   VGA_FILL_COL  EQU VGA_BASE+$07
+    49             00007F08   VGA_FILL_BACK EQU VGA_BASE+$08
+    50             00007F09   VGA_SCROLL_UP EQU VGA_BASE+$09
+    51             00007F0A   VGA_SCROLL_DN EQU VGA_BASE+$0A
+    52                        
+    53             00007F10   VGA_CUR1_X    EQU VGA_BASE+$10
+    54             00007F11   VGA_CUR1_Y    EQU VGA_BASE+$11
+    55             00007F12   VGA_CUR1_MODE EQU VGA_BASE+$12
+    56             00007F13   VGA_CUR2_X    EQU VGA_BASE+$13
+    57             00007F14   VGA_CUR2_Y    EQU VGA_BASE+$14
+    58             00007F15   VGA_CUR2_MODE EQU VGA_BASE+$15
+    59                        
+    60             00007F20   SID_BASE      EQU $7F20		; base address o
+                    f SID port on SXB
+    61             00007F20   SID_FR1LO     EQU SID_BASE
+    62             00007F21   SID_FR1HI     EQU SID_BASE+$01
+    63             00007F22   SID_PW1LO     EQU SID_BASE+$02
+    64             00007F23   SID_PW1HI     EQU SID_BASE+$03
+    65             00007F24   SID_CR1       EQU SID_BASE+$04
+    66             00007F25   SID_AD1       EQU SID_BASE+$05
+    67             00007F26   SID_SR1       EQU SID_BASE+$06
+    68                        
+    69             00007F27   SID_FR2LO     EQU SID_BASE+$07
+    70             00007F28   SID_FR2HI     EQU SID_BASE+$08
+    71             00007F29   SID_PW2LO     EQU SID_BASE+$09
+    72             00007F2A   SID_PW2HI     EQU SID_BASE+$0A
+    73             00007F2B   SID_CR2       EQU SID_BASE+$0B
+    74             00007F2C   SID_AD2       EQU SID_BASE+$0C
+    75             00007F2D   SID_SR2       EQU SID_BASE+$0D
+    76                        
+    77             00007F2E   SID_FR3LO     EQU SID_BASE+$0E
+    78             00007F2F   SID_FR3HI     EQU SID_BASE+$0F
+    79             00007F30   SID_PW3LO     EQU SID_BASE+$10
+    80             00007F31   SID_PW3HI     EQU SID_BASE+$11
+    81             00007F32   SID_CR3       EQU SID_BASE+$12
+    82             00007F33   SID_AD3       EQU SID_BASE+$13
+    83             00007F34   SID_SR3       EQU SID_BASE+$14
+    84                        
+    85             00007F35   SID_FCLO      EQU SID_BASE+$15
+    86             00007F36   SID_FCHI      EQU SID_BASE+$16
+    87             00007F37   SID_RESFIL    EQU SID_BASE+$17
+    88             00007F38   SID_MODVOL    EQU SID_BASE+$18
+    89                        
+    90             00000040   StringLo      EQU $40 ; Low pointer
+    91             00000041   StringHi      EQU $41 ; High pointer
+    92             00000042   Temp          EQU $42 ; Temp storage
+    93                        
+    94                          CHIP 65C02
+    95                          LONGI OFF
+    96                          LONGA OFF
+    97                        
+    98                          .STTL "VGA"
+    99                          .PAGE
+   100                                      ORG $0200
+  Fri Nov 27 2015 12:11                                                Page 3
+
+    "VGA VGA.asm"
+    "VGA"
+
+   101                        	START:
+   102                        
+   103                        FirstChar
+   104                        
+   105 00:0200: A9 20                      LDA #$20
+   106 00:0202: 8D 06 7F                   STA VGA_FILL_CHAR
+   107 00:0205: 20 63 04                   JSR delay
+   108                        
+   109                        mainLoop			  
+   110                        			  
+   111 00:0208: A9 03                      LDA #03			; Red
+   112 00:020A: A2 03                      LDX #03			; Green
+   113 00:020C: A0 00                      LDY #00			; Blue
+   114 00:020E: 20 79 04                   JSR calc_rgb
+   115 00:0211: 8D 08 7F                   STA VGA_FILL_BACK
+   116 00:0214: 20 73 04                   JSR small_delay
+   117 00:0217: 20 73 04                   JSR small_delay
+   118                        
+   119 00:021A: A9 00                      LDA #00			; Red
+   120 00:021C: A2 00                      LDX #00			; Green
+   121 00:021E: A0 03                      LDY #03			; Blue
+   122 00:0220: 20 79 04                   JSR calc_rgb
+   123 00:0223: 8D 07 7F                   STA VGA_FILL_COL
+   124 00:0226: 20 73 04                   JSR small_delay
+   125 00:0229: 20 73 04                   JSR small_delay
+   126                        
+   127 00:022C: A9 01                      LDA #1
+   128 00:022E: 8D 05 7F                   STA VGA_AUTO_INC
+   129 00:0231: 20 73 04                   JSR small_delay
+   130                        
+   131 00:0234: A2 00                      LDX #0
+   132 00:0236: A0 00                      LDY #0
+   133 00:0238: A9 xx                      LDA #<String1     ; Load String Point
+                    ers.
+   134 00:023A: 85 40                      STA StringLo
+   135 00:023C: A9 xx                      LDA #>String1
+   136 00:023E: 85 41                      STA StringHi
+   137 00:0240: 20 B9 04                   JSR printStringXY			
+                      
+   138 00:0243: 20 73 04                   JSR small_delay
+   139                        			  
+   140 00:0246: A2 00        			  LDX #0
+   141 00:0248: A0 03        			  LDY #3
+   142 00:024A: 8E 01 7F                   STX VGA_COL
+   143 00:024D: 20 73 04                   JSR small_delay
+   144 00:0250: 8C 02 7F                   STY VGA_ROW
+   145 00:0253: 20 73 04                   JSR small_delay			
+                      
+   146                        			  
+   147 00:0256: A0 12        			  LDY #18
+   148 00:0258: A9 00        			  LDA #0
+   149 00:025A: 8D 00 7F     tstLoop2	  STA VGA_PRINT
+   150 00:025D: 20 73 04     			  JSR small_delay
+   151 00:0260: 1A           			  INC
+   152 00:0261: D0 F7        			  BNE tstLoop2
+  Fri Nov 27 2015 12:11                                                Page 4
+
+    "VGA VGA.asm"
+    "VGA"
+
+   153 00:0263: 88           			  DEY
+   154 00:0264: D0 F4        			  BNE tstLoop2
+   155                        			  
+   156 00:0266: A2 00        			  LDX #0
+   157 00:0268: A0 02        			  LDY #2
+   158 00:026A: 20 92 04     			  JSR setRowCol
+   159 00:026D: A9 01        			  LDA #$01
+   160 00:026F: 20 9F 04     			  JSR printHex
+   161 00:0272: A9 23        			  LDA #$23
+   162 00:0274: 20 9F 04     			  JSR printHex
+   163 00:0277: A9 45        			  LDA #$45
+   164 00:0279: 20 9F 04     			  JSR printHex
+   165 00:027C: A9 67        			  LDA #$67
+   166 00:027E: 20 9F 04     			  JSR printHex
+   167 00:0281: A9 89        			  LDA #$89
+   168 00:0283: 20 9F 04     			  JSR printHex
+   169 00:0286: A9 AB        			  LDA #$AB
+   170 00:0288: 20 9F 04     			  JSR printHex
+   171 00:028B: A9 CD        			  LDA #$CD
+   172 00:028D: 20 9F 04     			  JSR printHex
+   173 00:0290: A9 EF        			  LDA #$EF
+   174 00:0292: 20 9F 04     			  JSR printHex
+   175                        			  
+   176 00:0295: 8D 09 7F     			  STA VGA_SCROLL_UP
+   177 00:0298: 20 63 04                   JSR delay
+   178                        
+   179 00:029B: 8D 09 7F     			  STA VGA_SCROLL_UP
+   180 00:029E: 20 63 04                   JSR delay
+   181                        
+   182 00:02A1: 8D 09 7F     			  STA VGA_SCROLL_UP
+   183 00:02A4: 20 63 04                   JSR delay
+   184                        
+   185 00:02A7: 8D 09 7F     			  STA VGA_SCROLL_UP
+   186 00:02AA: 20 63 04                   JSR delay
+   187                        
+   188 00:02AD: 8D 09 7F     			  STA VGA_SCROLL_UP
+   189 00:02B0: 20 63 04                   JSR delay
+   190                        
+   191 00:02B3: 20 63 04                   JSR delay
+   192 00:02B6: 20 63 04                   JSR delay
+   193 00:02B9: 20 63 04                   JSR delay
+   194 00:02BC: 20 63 04                   JSR delay
+   195 00:02BF: 20 63 04                   JSR delay
+   196                        
+   197 00:02C2: 8D 0A 7F     			  STA VGA_SCROLL_DN
+   198 00:02C5: 20 63 04                   JSR delay
+   199                        
+   200 00:02C8: 8D 0A 7F     			  STA VGA_SCROLL_DN
+   201 00:02CB: 20 63 04                   JSR delay
+   202                        
+   203 00:02CE: 8D 0A 7F     			  STA VGA_SCROLL_DN
+   204 00:02D1: 20 63 04                   JSR delay
+   205                        
+   206 00:02D4: 8D 0A 7F     			  STA VGA_SCROLL_DN
+   207 00:02D7: 20 63 04                   JSR delay
+  Fri Nov 27 2015 12:11                                                Page 5
+
+    "VGA VGA.asm"
+    "VGA"
+
+   208                        
+   209 00:02DA: 8D 0A 7F     			  STA VGA_SCROLL_DN
+   210 00:02DD: 20 63 04                   JSR delay
+   211                        
+   212 00:02E0: 20 63 04                   JSR delay
+   213 00:02E3: 20 63 04                   JSR delay
+   214 00:02E6: 20 63 04                   JSR delay
+   215 00:02E9: 20 63 04                   JSR delay
+   216 00:02EC: 20 63 04                   JSR delay			  
+   217                        
+   218                        			  
+   219 00:02EF: 4C 08 02     			  JMP mainLoop
+   220                        			  
+   221 00:02F2: A9 07                      LDA #$07
+   222 00:02F4: 8D 38 7F                   STA SID_MODVOL
+   223 00:02F7: 20 73 04                   JSR small_delay
+   224 00:02FA: A9 14                      LDA #20
+   225 00:02FC: 8D 20 7F                   STA SID_FR1LO
+   226 00:02FF: 20 73 04                   JSR small_delay
+   227 00:0302: A9 0A                      LDA #10
+   228 00:0304: 8D 21 7F                   STA SID_FR1HI
+   229 00:0307: 20 73 04                   JSR small_delay
+   230 00:030A: A9 22                      LDA #$22
+   231 00:030C: 8D 25 7F                   STA SID_AD1
+   232 00:030F: 20 73 04                   JSR small_delay
+   233 00:0312: A9 2F                      LDA #$2F
+   234 00:0314: 8D 26 7F                   STA SID_SR1
+   235 00:0317: 20 73 04                   JSR small_delay
+   236 00:031A: A9 21                      LDA #$21
+   237 00:031C: 8D 24 7F                   STA SID_CR1
+   238 00:031F: 20 73 04                   JSR small_delay
+   239                        
+   240 00:0322: 20 63 04                   JSR delay
+   241                        
+   242 00:0325: A9 20                      LDA #$20
+   243 00:0327: 8D 24 7F                   STA SID_CR1
+   244 00:032A: 20 73 04                   JSR small_delay
+   245                        
+   246 00:032D: 20 63 04                   JSR delay
+   247                        
+   248                                      ;JMP FirstChar
+   249                        
+   250                        
+   251 00:0330: A9 64                      LDA #100
+   252 00:0332: 8D 27 7F                   STA SID_FR2LO
+   253 00:0335: 20 73 04                   JSR small_delay
+   254 00:0338: A9 64                      LDA #100
+   255 00:033A: 8D 28 7F                   STA SID_FR2HI
+   256 00:033D: 20 73 04                   JSR small_delay
+   257 00:0340: A9 11                      LDA #$11
+   258 00:0342: 8D 2B 7F                   STA SID_CR2
+   259 00:0345: 20 73 04                   JSR small_delay
+   260                        
+   261 00:0348: A9 64                      LDA #100
+   262 00:034A: 8D 2E 7F                   STA SID_FR3LO
+  Fri Nov 27 2015 12:11                                                Page 6
+
+    "VGA VGA.asm"
+    "VGA"
+
+   263 00:034D: 20 73 04                   JSR small_delay
+   264 00:0350: A9 64                      LDA #100
+   265 00:0352: 8D 2F 7F                   STA SID_FR3HI
+   266 00:0355: 20 73 04                   JSR small_delay
+   267 00:0358: A9 11                      LDA #$11
+   268 00:035A: 8D 32 7F                   STA SID_CR3
+   269 00:035D: 20 73 04                   JSR small_delay
+   270                        
+   271                        
+   272 00:0360: A9 28                      LDA #40
+   273 00:0362: 8D 20 7F                   STA SID_FR1LO
+   274 00:0365: 20 73 04                   JSR small_delay
+   275 00:0368: A9 28                      LDA #40
+   276 00:036A: 8D 21 7F                   STA SID_FR1HI
+   277 00:036D: 20 73 04                   JSR small_delay
+   278 00:0370: A9 11                      LDA #$11
+   279 00:0372: 8D 24 7F                   STA SID_CR1
+   280 00:0375: 20 73 04                   JSR small_delay
+   281                        
+   282 00:0378: A9 28                      LDA #40
+   283 00:037A: 8D 27 7F                   STA SID_FR2LO
+   284 00:037D: 20 73 04                   JSR small_delay
+   285 00:0380: A9 28                      LDA #40
+   286 00:0382: 8D 28 7F                   STA SID_FR2HI
+   287 00:0385: 20 73 04                   JSR small_delay
+   288 00:0388: A9 11                      LDA #$11
+   289 00:038A: 8D 2B 7F                   STA SID_CR2
+   290 00:038D: 20 73 04                   JSR small_delay
+   291                        
+   292 00:0390: A9 28                      LDA #40
+   293 00:0392: 8D 2E 7F                   STA SID_FR3LO
+   294 00:0395: 20 73 04                   JSR small_delay
+   295 00:0398: A9 28                      LDA #40
+   296 00:039A: 8D 2F 7F                   STA SID_FR3HI
+   297 00:039D: 20 73 04                   JSR small_delay
+   298 00:03A0: A9 11                      LDA #$11
+   299 00:03A2: 8D 32 7F                   STA SID_CR3
+   300 00:03A5: 20 73 04                   JSR small_delay
+   301                        
+   302 00:03A8: 20 63 04                   JSR delay
+   303                        
+   304                                      ;JMP FirstChar
+   305                        
+   306 00:03AB: A9 01                      LDA #1
+   307 00:03AD: 8D 05 7F                   STA VGA_AUTO_INC
+   308 00:03B0: 20 73 04                   JSR small_delay
+   309                        
+   310                        
+   311 00:03B3: A2 02                      LDX #2
+   312 00:03B5: A0 03                      LDY #3
+   313 00:03B7: A9 xx                      LDA #<String1         ; Load String P
+                    ointers.
+   314 00:03B9: 85 40                      STA StringLo
+   315 00:03BB: A9 xx                      LDA #>String1
+   316 00:03BD: 85 41                      STA StringHi
+  Fri Nov 27 2015 12:11                                                Page 7
+
+    "VGA VGA.asm"
+    "VGA"
+
+   317 00:03BF: 20 B9 04                   JSR printStringXY
+   318                        
+   319 00:03C2: A9 00                      LDA #00
+   320 00:03C4: 8D 05 7F                   STA VGA_AUTO_INC
+   321 00:03C7: 20 73 04                   JSR small_delay
+   322                        
+   323 00:03CA: A9 03                      LDA #3
+   324 00:03CC: 8D 10 7F                   STA VGA_CUR1_X
+   325 00:03CF: 20 73 04                   JSR small_delay
+   326                        
+   327 00:03D2: A9 04                      LDA #4
+   328 00:03D4: 8D 11 7F                   STA VGA_CUR1_Y
+   329 00:03D7: 20 73 04                   JSR small_delay
+   330                        
+   331 00:03DA: A9 07                      LDA #7
+   332 00:03DC: 8D 12 7F                   STA VGA_CUR1_MODE
+   333 00:03DF: 20 73 04                   JSR small_delay
+   334                        
+   335 00:03E2: A9 02                      LDA #2
+   336 00:03E4: 8D 13 7F                   STA VGA_CUR2_X
+   337 00:03E7: 20 73 04                   JSR small_delay
+   338                        
+   339 00:03EA: A9 03                      LDA #3
+   340 00:03EC: 8D 14 7F                   STA VGA_CUR2_Y
+   341 00:03EF: 20 73 04                   JSR small_delay
+   342                        
+   343 00:03F2: A9 02                      LDA #2
+   344 00:03F4: 8D 15 7F                   STA VGA_CUR2_MODE
+   345 00:03F7: 20 73 04                   JSR small_delay
+   346                        
+   347                                      ;JMP FirstChar
+   348                        
+   349 00:03FA: A9 32                      LDA #50
+   350 00:03FC: 8D 02 7F     colLoop       STA VGA_ROW
+   351 00:03FF: 20 73 04                   JSR small_delay
+   352 00:0402: 2A                         ROL
+   353 00:0403: 2A                         ROL
+   354 00:0404: 8D 04 7F                   STA VGA_ROW_BACK
+   355 00:0407: 20 73 04                   JSR small_delay
+   356 00:040A: 6A                         ROR
+   357 00:040B: 6A                         ROR
+   358 00:040C: 3A                         DEC
+   359                                      ;BNE colLoop
+   360                        
+   361 00:040D: 20 63 04                   JSR delay
+   362                        
+   363 00:0410: A9 30                      LDA #$30
+   364 00:0412: 8D 06 7F                   STA VGA_FILL_CHAR
+   365 00:0415: 20 63 04                   JSR delay
+   366 00:0418: A9 FC                      LDA #$FC
+   367 00:041A: 8D 07 7F                   STA VGA_FILL_COL
+   368 00:041D: 20 63 04                   JSR delay
+   369 00:0420: A9 00                      LDA #$00
+   370 00:0422: 8D 08 7F                   STA VGA_FILL_BACK
+   371 00:0425: 20 63 04                   JSR delay
+  Fri Nov 27 2015 12:11                                                Page 8
+
+    "VGA VGA.asm"
+    "VGA"
+
+   372                        
+   373                        
+   374 00:0428: A9 31                      LDA #$31
+   375 00:042A: 8D 06 7F                   STA VGA_FILL_CHAR
+   376 00:042D: 20 63 04                   JSR delay
+   377 00:0430: A9 CC                      LDA #$CC
+   378 00:0432: 8D 07 7F                   STA VGA_FILL_COL
+   379 00:0435: 20 63 04                   JSR delay
+   380 00:0438: A9 3C                      LDA #$3C
+   381 00:043A: 8D 08 7F                   STA VGA_FILL_BACK
+   382 00:043D: 20 63 04                   JSR delay
+   383                        
+   384 00:0440: A9 32                      LDA #$32
+   385 00:0442: 8D 06 7F                   STA VGA_FILL_CHAR
+   386 00:0445: 20 63 04                   JSR delay
+   387 00:0448: A9 00                      LDA #$00
+   388 00:044A: 8D 07 7F                   STA VGA_FILL_COL
+   389 00:044D: 20 63 04                   JSR delay
+   390 00:0450: A9 F0                      LDA #$F0
+   391 00:0452: 8D 08 7F                   STA VGA_FILL_BACK
+   392 00:0455: 20 63 04                   JSR delay
+   393                        
+   394 00:0458: A9 20                      LDA #$20
+   395 00:045A: 8D 06 7F                   STA VGA_FILL_CHAR
+   396 00:045D: 20 63 04                   JSR delay
+   397                        
+   398 00:0460: 4C 00 02                   JMP FirstChar
+   399                        
+   400                        ;-------------------------------------------------
+                    ------------------------
+   401                        ; delay: delay to see changes on screen.
+   402                        ;-------------------------------------------------
+                    ------------------------
+   403                        
+   404 00:0463: A9 10        delay         LDA #$10
+   405 00:0465: A0 00                      LDY #$00            ; Loop 256*256 ti
+                    mes...
+   406 00:0467: A2 00                      LDX #$00
+   407                        
+   408 00:0469: CA           dloop1        DEX
+   409 00:046A: D0 FD                      BNE dloop1
+   410 00:046C: 88                         DEY
+   411 00:046D: D0 FA                      BNE dloop1
+   412 00:046F: 3A                         DEC
+   413 00:0470: D0 F7                      BNE dloop1
+   414 00:0472: 60                         RTS
+   415                        
+   416                        ;-------------------------------------------------
+                    ------------------------
+   417                        ; small_delay: Small delay for propeller to catch 
+                    up.
+   418                        ;-------------------------------------------------
+                    ------------------------
+   419                        
+   420 00:0473: A2 08        small_delay   LDX #$08
+  Fri Nov 27 2015 12:11                                                Page 9
+
+    "VGA VGA.asm"
+    "VGA"
+
+   421                        
+   422 00:0475: CA           dloop2        DEX
+   423 00:0476: D0 FD                      BNE dloop2
+   424 00:0478: 60                         RTS
+   425                        
+   426                        ;-------------------------------------------------
+                    ------------------------
+   427                        ; calc_rgb: A = R, X = G, Y = B values between 0 a
+                    nd 3
+   428                        ; Resulting byte is RRGGBB00 each two bit values.
+   429                        ;-------------------------------------------------
+                    ------------------------
+   430                        
+   431 00:0479: 2A           calc_rgb      ROL
+   432 00:047A: 2A                         ROL
+   433 00:047B: 2A                         ROL
+   434 00:047C: 2A                         ROL
+   435 00:047D: 2A                         ROL
+   436 00:047E: 2A                         ROL
+   437 00:047F: 85 42                      STA Temp
+   438 00:0481: 8A                         TXA
+   439 00:0482: 2A                         ROL
+   440 00:0483: 2A                         ROL
+   441 00:0484: 2A                         ROL
+   442 00:0485: 2A                         ROL
+   443 00:0486: 18                         CLC
+   444 00:0487: 65 42                      ADC Temp
+   445 00:0489: 85 42                      STA Temp
+   446 00:048B: 98                         TYA
+   447 00:048C: 2A                         ROL
+   448 00:048D: 2A                         ROL
+   449 00:048E: 18                         CLC
+   450 00:048F: 65 42                      ADC Temp
+   451 00:0491: 60                         RTS
+   452                        
+   453                        ;-------------------------------------------------
+                    ------------------------
+   454                        ; setRowCol: Set Row and col from X and Y.
+   455                        ;-------------------------------------------------
+                    ------------------------
+   456                        setRowCol
+   457 00:0492: 8E 01 7F                   STX VGA_COL
+   458 00:0495: 20 73 04                   JSR small_delay
+   459 00:0498: 8C 02 7F                   STY VGA_ROW
+   460 00:049B: 20 73 04                   JSR small_delay
+   461 00:049E: 60           			  RTS
+   462                        			  
+   463                        ;-------------------------------------------------
+                    ------------------------
+   464                        ; printHex: Print a HEX value, the Woz way...
+   465                        ;-------------------------------------------------
+                    ------------------------
+   466                        
+   467                        printHex
+   468 00:049F: 48           			  PHA				
+  Fri Nov 27 2015 12:11                                                Page 10
+
+    "VGA VGA.asm"
+    "VGA"
+
+                    ; Save A for LSD
+   469 00:04A0: 4A           			  LSR
+   470 00:04A1: 4A           			  LSR
+   471 00:04A2: 4A           			  LSR				
+                    ; MSD to LSD position
+   472 00:04A3: 4A           			  LSR
+   473 00:04A4: 20 A8 04     			  JSR PRHEX			
+                    ; Output hex digit 
+   474 00:04A7: 68           			  PLA				
+                    ; Restore A
+   475 00:04A8: 29 0F        PRHEX		  AND #%00001111	; Mask L
+                    SD for hex print			  
+   476 00:04AA: 09 30        			  ORA #"0"			
+                    ; Add "0"
+   477 00:04AC: C9 3A        			  CMP #"9"+1		; Is it 
+                    a decimal digit ?
+   478 00:04AE: 90 02        			  BCC ECHO			
+                    ; Yes Output it
+   479 00:04B0: 69 06        			  ADC #6			
+                    ; Add offset for letter A-F
+   480 00:04B2: 8D 00 7F     ECHO		  STA VGA_PRINT		; Print
+   481 00:04B5: 20 73 04     			  JSR small_delay	; Wait t
+                    o catch up
+   482 00:04B8: 60           			  RTS
+   483                        			  
+   484                        ;-------------------------------------------------
+                    ------------------------
+   485                        ; printStringXY: Print a string preloaded in Strin
+                    gLo at XY from Xand Y register.
+   486                        ;-------------------------------------------------
+                    ------------------------
+   487                        
+   488                        printStringXY
+   489 00:04B9: 8E 01 7F                   STX VGA_COL
+   490 00:04BC: 20 73 04                   JSR small_delay
+   491 00:04BF: 8C 02 7F                   STY VGA_ROW
+   492 00:04C2: 20 73 04                   JSR small_delay
+   493                        
+   494                        ;-------------------------------------------------
+                    ------------------------
+   495                        ; printString: Print a string preloaded in StringL
+                    o
+   496                        ;-------------------------------------------------
+                    ------------------------
+   497                        
+   498                        printString
+   499 00:04C5: A0 00                      LDY #0
+   500 00:04C7: B1 40        nextChar      LDA (StringLo),Y
+   501 00:04C9: F0 09                      BEQ done_Printing
+   502 00:04CB: 8D 00 7F                   STA VGA_PRINT
+   503 00:04CE: 20 73 04                   JSR small_delay
+   504 00:04D1: C8                         INY
+   505 00:04D2: 80 F3                      BRA nextChar
+   506                        done_Printing
+   507 00:04D4: 60                         RTS
+  Fri Nov 27 2015 12:11                                                Page 11
+
+    "VGA VGA.asm"
+    "VGA"
+
+   508                        ;-------------------------------------------------
+                    ------------------------
+   509                        ; FUNCTION NAME	: Event Hander re-vectors
+   510                        ;-------------------------------------------------
+                    ------------------------
+   511                        IRQHandler:
+   512 00:04D5: 48                         PHA
+   513 00:04D6: 68           			  PLA
+   514 00:04D7: 40           			  RTI
+   515                        
+   516                        badVec:		; $FFE0 - IRQRVD2(134)
+   517 00:04D8: 08                         PHP
+   518 00:04D9: 48                         PHA
+   519 00:04DA: A9 FF                      LDA #$FF
+   520                                      ;clear Irq
+   521 00:04DC: 68                         PLA
+   522 00:04DD: 28                         PLP
+   523 00:04DE: 40                         RTI
+   524                        
+   525                        
+   526                        	DATA
+   527                        
+   528                        String1
+   529 00:0000: 54 65 73 74                BYTE "Testing printing a string...", 
+                    $00 ; 1
+       00:0004: 69 6E 67 20 
+       00:0008: 70 72 69 6E 
+       00:000C: 74 69 6E 67 
+       00:0010: 20 61 20 73 
+       00:0014: 74 72 69 6E 
+       00:0018: 67 2E 2E 2E 
+       00:001C: 00 
+   530 00:001D:              	ENDS
+   531                        
+   532                        ;-----------------------------
+   533                        ;
+   534                        ;		Reset and Interrupt Vectors (define for 
+                    265, 816/02 are subsets)
+   535                        ;
+   536                        ;-----------------------------
+   537                        
+   538                        Shadow_VECTORS	SECTION OFFSET $7EE0
+   539                                                    ;65C816 Interrupt Vect
+                    ors
+   540                                                    ;Status bit E = 0 (Nat
+                    ive mode, 16 bit mode)
+   541 00:7EE0: D8 04                      DW badVec     ; $FFE0 - IRQRVD4(816)
+   542 00:7EE2: D8 04                      DW badVec     ; $FFE2 - IRQRVD5(816)
+   543 00:7EE4: D8 04                      DW badVec     ; $FFE4 - COP(816)
+   544 00:7EE6: D8 04                      DW badVec     ; $FFE6 - BRK(816)
+   545 00:7EE8: D8 04                      DW badVec     ; $FFE8 - ABORT(816)
+   546 00:7EEA: D8 04                      DW badVec     ; $FFEA - NMI(816)
+   547 00:7EEC: D8 04                      DW badVec     ; $FFEC - IRQRVD(816)
+   548 00:7EEE: D8 04                      DW badVec     ; $FFEE - IRQ(816)
+   549                                                    ;Status bit E = 1 (Emu
+  Fri Nov 27 2015 12:11                                                Page 12
+
+    "VGA VGA.asm"
+    "VGA"
+
+                    lation mode, 8 bit mode)
+   550 00:7EF0: D8 04                      DW badVec     ; $FFF0 - IRQRVD2(8 bit
+                     Emulation)(IRQRVD(265))
+   551 00:7EF2: D8 04                      DW badVec     ; $FFF2 - IRQRVD1(8 bit
+                     Emulation)(IRQRVD(265))
+   552 00:7EF4: D8 04                      DW badVec     ; $FFF4 - COP(8 bit Emu
+                    lation)
+   553 00:7EF6: D8 04                      DW badVec     ; $FFF6 - IRQRVD0(8 bit
+                     Emulation)(IRQRVD(265))
+   554 00:7EF8: D8 04                      DW badVec     ; $FFF8 - ABORT(8 bit E
+                    mulation)
+   555                                                    ; Common 8 bit Vectors
+                     for all CPUs
+   556 00:7EFA: D8 04                      DW badVec     ; $FFFA -  NMIRQ (ALL)
+   557 00:7EFC: 00 02                      DW START      ; $FFFC -  RESET (ALL)
+   558 00:7EFE: D5 04                      DW IRQHandler ; $FFFE -  IRQBRK (ALL)
+   559 00:7F00:              	ENDS
+   560                        
+   561                        vectors	SECTION OFFSET $FFE0
+   562                        							
+                    ;65C816 Interrupt Vectors
+   563                        							
+                    ;Status bit E = 0 (Native mode, 16 bit mode)
+   564 00:FFE0: D8 04                      DW badVec     ; $FFE0 - IRQRVD4(816)
+   565 00:FFE2: D8 04                      DW badVec     ; $FFE2 - IRQRVD5(816)
+   566 00:FFE4: D8 04                      DW badVec     ; $FFE4 - COP(816)
+   567 00:FFE6: D8 04                      DW badVec     ; $FFE6 - BRK(816)
+   568 00:FFE8: D8 04                      DW badVec     ; $FFE8 - ABORT(816)
+   569 00:FFEA: D8 04                      DW badVec     ; $FFEA - NMI(816)
+   570 00:FFEC: D8 04                      DW badVec     ; $FFEC - IRQRVD(816)
+   571 00:FFEE: D8 04                      DW badVec     ; $FFEE - IRQ(816)
+   572                        							
+                    ;Status bit E = 1 (Emulation mode, 8 bit mode)
+   573 00:FFF0: D8 04                      DW badVec     ; $FFF0 - IRQRVD2(8 bit
+                     Emulation)(IRQRVD(265))
+   574 00:FFF2: D8 04                      DW badVec     ; $FFF2 - IRQRVD1(8 bit
+                     Emulation)(IRQRVD(265))
+   575 00:FFF4: D8 04                      DW badVec     ; $FFF4 - COP(8 bit Emu
+                    lation)
+   576 00:FFF6: D8 04                      DW badVec     ; $FFF6 - IRQRVD0(8 bit
+                     Emulation)(IRQRVD(265))
+   577 00:FFF8: D8 04                      DW badVec     ; $FFF8 - ABORT(8 bit E
+                    mulation)
+   578                        							
+                    ; Common 8 bit Vectors for all CPUs
+   579 00:FFFA: D8 04                      DW badVec     ; $FFFA -  NMIRQ (ALL)
+   580 00:FFFC: 00 02                      DW START      ; $FFFC -  RESET (ALL)
+   581 00:FFFE: D5 04                      DW IRQHandler ; $FFFE -  IRQBRK (ALL)
+   582 01:0000:              	ENDS
+   583                        	END
+
+
+      Lines assembled: 583
+      Errors: 0

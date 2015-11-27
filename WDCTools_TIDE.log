@@ -1,0 +1,215 @@
+++ GEN Info: LoadParseSymbolFile: !!! No Symbol file exists: File = : 'C:\wdc\Projects\VGA\VGA.sym'
+wdc816as.exe  -g -DUSING_816 -DM_SMALL -l C:\wdc\Projects\VGA\VGA.asm
+
+>
+Compile Complete
+================
+>
+C:\WDC\Tools\bin\WDCLN.exe  -g -t -sz -HZ -oC:\wdc\Projects\VGA\VGA.bin C:\wdc\Projects\VGA\VGA.obj 
+
+>
+Link Complete
+=============
+>
+++ GEN Info: LoadParseSymbolFile: !!! No Symbol file exists: File = : 'C:\wdc\Projects\VGA\VGA.sym'
+>> Creating *_sym.txt Report file:
+>> Creating *.llst Linked-Listing files:
+wdc816as.exe  -g -DUSING_816 -DM_SMALL -l C:\wdc\Projects\VGA\VGA.asm
+
+>
+Compile Complete
+================
+>
+C:\WDC\Tools\bin\WDCLN.exe  -g -t -sz -HZ -oC:\wdc\Projects\VGA\VGA.bin C:\wdc\Projects\VGA\VGA.obj 
+
+>
+Link Complete
+=============
+>
+++ GEN Info: LoadParseSymbolFile: !!! No Symbol file exists: File = : 'C:\wdc\Projects\VGA\VGA.sym'
+>> Creating *_sym.txt Report file:
+>> Creating *.llst Linked-Listing files:
+wdc816as.exe  -g -DUSING_816 -DM_SMALL -l C:\wdc\Projects\VGA\VGA.asm
+
+>
+Compile Complete
+================
+>
+C:\WDC\Tools\bin\WDCLN.exe  -g -t -sz -HZ -oC:\wdc\Projects\VGA\VGA.bin C:\wdc\Projects\VGA\VGA.obj 
+
+>
+Link Complete
+=============
+>
+++ GEN Info: LoadParseSymbolFile: !!! No Symbol file exists: File = : 'C:\wdc\Projects\VGA\VGA.sym'
+>> Creating *_sym.txt Report file:
+>> Creating *.llst Linked-Listing files:
+wdc816as.exe  -g -DUSING_816 -DM_SMALL -l C:\wdc\Projects\VGA\VGA.asm
+
+>
+Compile Complete
+================
+>
+C:\WDC\Tools\bin\WDCLN.exe  -g -t -sz -HZ -oC:\wdc\Projects\VGA\VGA.bin C:\wdc\Projects\VGA\VGA.obj 
+
+>
+Link Complete
+=============
+>
+>> Creating *_sym.txt Report file:
+>> Creating *.llst Linked-Listing files:
+>> Setting WDCDB.INI file to USB Debug
+>> Setting WDCDB.INI file to USB Debug
+>> Setting WDCDB.INI file to USB Debug
+wdc816as.exe  -g -DUSING_816 -DM_SMALL -l C:\wdc\Projects\VGA\VGA.asm
+
+>
+Compile Complete
+================
+>
+C:\WDC\Tools\bin\WDCLN.exe  -g -t -sz -HZ -oC:\wdc\Projects\VGA\VGA.bin C:\wdc\Projects\VGA\VGA.obj 
+
+>
+Link Complete
+=============
+>
+>> Creating *_sym.txt Report file:
+>> Creating *.llst Linked-Listing files:
+>> Setting WDCDB.INI file to USB Debug
+>> Setting WDCDB.INI file to USB Debug
+>> Setting WDCDB.INI file to USB Debug
+>> Setting WDCDB.INI file to USB Debug
+wdc816as.exe  -g -DUSING_816 -DM_SMALL -l C:\wdc\Projects\VGA\VGA.asm
+
+>
+Compile Complete
+================
+>
+C:\WDC\Tools\bin\WDCLN.exe  -g -t -sz -HZ -oC:\wdc\Projects\VGA\VGA.bin C:\wdc\Projects\VGA\VGA.obj 
+
+>
+Link Complete
+=============
+>
+>> Creating *_sym.txt Report file:
+>> Creating *.llst Linked-Listing files:
+>> Setting WDCDB.INI file to USB Debug
+>> Setting WDCDB.INI file to USB Debug
+wdc816as.exe  -g -DUSING_816 -DM_SMALL -l C:\wdc\Projects\VGA\VGA.asm
+
+>
+Compile Complete
+================
+>
+C:\WDC\Tools\bin\WDCLN.exe  -g -t -sz -HZ -oC:\wdc\Projects\VGA\VGA.bin C:\wdc\Projects\VGA\VGA.obj 
+
+>
+Link Complete
+=============
+>
+>> Creating *_sym.txt Report file:
+>> Creating *.llst Linked-Listing files:
+wdc816as.exe  -g -DUSING_816 -DM_SMALL -l C:\wdc\Projects\VGA\VGA.asm
+
+>
+Compile Complete
+================
+>
+C:\WDC\Tools\bin\WDCLN.exe  -g -t -sz -HZ -oC:\wdc\Projects\VGA\VGA.bin C:\wdc\Projects\VGA\VGA.obj 
+
+>
+Link Complete
+=============
+>
+>> Creating *_sym.txt Report file:
+>> Creating *.llst Linked-Listing files:
+>> Setting WDCDB.INI file to USB Debug
+wdc816as.exe  -g -DUSING_816 -DM_SMALL -l C:\wdc\Projects\VGA\VGA.asm
+
+>
+Compile Complete
+================
+>
+C:\WDC\Tools\bin\WDCLN.exe  -g -t -sz -HZ -oC:\wdc\Projects\VGA\VGA.bin C:\wdc\Projects\VGA\VGA.obj 
+
+>
+Link Complete
+=============
+>
+>> Creating *_sym.txt Report file:
+>> Creating *.llst Linked-Listing files:
+>> Setting WDCDB.INI file to USB Debug
+wdc816as.exe  -g -DUSING_816 -DM_SMALL -l C:\wdc\Projects\VGA\VGA.asm
+
+>
+Compile Complete
+================
+>
+C:\WDC\Tools\bin\WDCLN.exe  -g -t -sz -HZ -oC:\wdc\Projects\VGA\VGA.bin C:\wdc\Projects\VGA\VGA.obj 
+
+>
+Link Complete
+=============
+>
+>> Creating *_sym.txt Report file:
+>> Creating *.llst Linked-Listing files:
+wdc816as.exe  -g -DUSING_816 -DM_SMALL -l C:\wdc\Projects\VGA\VGA.asm
+
+>
+Compile Complete
+================
+>
+C:\WDC\Tools\bin\WDCLN.exe  -g -t -sz -HZ -oC:\wdc\Projects\VGA\VGA.bin C:\wdc\Projects\VGA\VGA.obj 
+
+>
+Link Complete
+=============
+>
+>> Creating *_sym.txt Report file:
+>> Creating *.llst Linked-Listing files:
+wdc816as.exe  -g -DUSING_816 -DM_SMALL -l C:\wdc\Projects\VGA\VGA.asm
+
+>
+Compile Complete
+================
+>
+C:\WDC\Tools\bin\WDCLN.exe  -g -t -sz -HZ -oC:\wdc\Projects\VGA\VGA.bin C:\wdc\Projects\VGA\VGA.obj 
+
+>
+Link Complete
+=============
+>
+>> Creating *_sym.txt Report file:
+>> Creating *.llst Linked-Listing files:
+>> Setting WDCDB.INI file to USB Debug
+>> Setting WDCDB.INI file to USB Debug
+wdc816as.exe  -g -DUSING_816 -DM_SMALL -l C:\wdc\Projects\VGA\VGA.asm
+
+>
+Compile Complete
+================
+>
+C:\WDC\Tools\bin\WDCLN.exe  -g -t -sz -HZ -oC:\wdc\Projects\VGA\VGA.bin C:\wdc\Projects\VGA\VGA.obj 
+
+>
+Link Complete
+=============
+>
+>> Creating *_sym.txt Report file:
+>> Creating *.llst Linked-Listing files:
+>> Setting WDCDB.INI file to USB Debug
+wdc816as.exe  -g -DUSING_816 -DM_SMALL -l C:\wdc\Projects\VGA\VGA.asm
+
+>
+Compile Complete
+================
+>
+C:\WDC\Tools\bin\WDCLN.exe  -g -t -sz -HZ -oC:\wdc\Projects\VGA\VGA.bin C:\wdc\Projects\VGA\VGA.obj 
+
+>
+Link Complete
+=============
+>
+>> Creating *_sym.txt Report file:
+>> Creating *.llst Linked-Listing files:
+>> Setting WDCDB.INI file to USB Debug

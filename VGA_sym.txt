@@ -1,0 +1,88 @@
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%	For Symbol File: 'C:\wdc\Projects\VGA\VGA.sym',
+%	with string table size of 342 bytes, there is the following information:
+%
+%	There are a total of 7 Sections with Info below:
+%					Section Map:
+%		Idx #   Section Name                       Beg. Addr.   End  Addr.   ROM  Addr.   Size
+%		-----   --------------------------------   ----------   ----------   ----------   ----------
+%		    0   PAGE0                              ----------   ----------   ----------   ----------
+%		    1   CODE                               0x00000200   0x00000464   0x00000200   0x00000264
+%		    2   KDATA                              ----------   ----------   ----------   ----------
+%		    3   DATA                               0x00000465   0x00000481   0x00000465   0x0000001C
+%		    4   UDATA                              ----------   ----------   ----------   ----------
+%		    5   SHADOW_VECTORS                     0x00007EE0   0x00007EFF   0x00007EE0   0x0000001F
+%		    6   VECTORS                            0x0000FFE0   0x0000FFFF   0x0000FFE0   0x0000001F
+%
+%	There are a total of 4 Section segments with Info below:
+%					Section Table:
+%		Mod #   Section Name                       Beg. Addr.   End  Addr.   Size
+%		-----   --------------------------------   ----------   ----------   ----------
+%		    0   CODE                               0x00000200   0x00000464   0x00000265
+%		    0   DATA                               0x00000465   0x00000481   0x0000001D
+%		    0   SHADOW_VECTORS                     0x00007EE0   0x00007EFF   0x00000020
+%		    0   VECTORS                            0x0000FFE0   0x0000FFFF   0x00000020
+%
+%%%	There are 1 Modules with Info below:
+%%%%%%%%%%%%%%%%
+%		Module #0 has name 'C:\wdc\Projects\VGA\VGA.obj'
+%		There are 4 Section Records (see Section Table above for details)
+%		There are 299 Line Records:
+%					First 5 Line Records:
+%			Rec #   Line #   File #   Beg. Addr.   Size         aiFlags
+%			-----   ------   ------   ----------   ----------   ------
+%			    0      103        0   0x00000200   0x00000002   0x30
+%			    1      104        0   0x00000202   0x00000003   0x30
+%			    2      105        0   0x00000205   0x00000003   0x30
+%			    3      109        0   0x00000208   0x00000002   0x30
+%			    4      110        0   0x0000020A   0x00000002   0x30
+%			    5      111        0   0x0000020C   0x00000002   0x30
+%
+%		There are 1 Symbol Records:
+%					Module Symbol Information:
+%			Rec #   Class        Symbol Informations
+%			-----   ----------   -------------------------------------
+%			    0   C_FILE     , Name = C:\wdc\Projects\VGA\VGA.asm, Index = 0
+%%%%%%%%%%%%%%%%
+%
+%	There are 0 Global Symbol Records:
+%				Global Symbol Information:
+%		Rec #   Class        Symbol Informations
+%		-----   ----------   -------------------------------------
+%
+%	There are 0 Aux Records with Info below:
+%
+%	There are 1 File Records with Info below:
+%		File Record #   0 has   522 source lines and name 'C:\wdc\Projects\VGA\VGA.asm'
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%	Contents of Symbol String Table are:
+%		String #    0 @0x00000000 = '_BEG_PAGE0'
+%		String #    1 @0x0000000B = '_END_PAGE0'
+%		String #    2 @0x00000016 = '_ROM_BEG_PAGE0'
+%		String #    3 @0x00000025 = '_BEG_CODE'
+%		String #    4 @0x0000002F = '_END_CODE'
+%		String #    5 @0x00000039 = '_ROM_BEG_CODE'
+%		String #    6 @0x00000047 = '_BEG_KDATA'
+%		String #    7 @0x00000052 = '_END_KDATA'
+%		String #    8 @0x0000005D = '_ROM_BEG_KDATA'
+%		String #    9 @0x0000006C = '_BEG_DATA'
+%		String #   10 @0x00000076 = '_END_DATA'
+%		String #   11 @0x00000080 = '_ROM_BEG_DATA'
+%		String #   12 @0x0000008E = '_BEG_UDATA'
+%		String #   13 @0x00000099 = '_END_UDATA'
+%		String #   14 @0x000000A4 = '_ROM_BEG_UDATA'
+%		String #   15 @0x000000B3 = '_BEG_SHADOW_VECTORS'
+%		String #   16 @0x000000C7 = '_END_SHADOW_VECTORS'
+%		String #   17 @0x000000DB = '_ROM_BEG_SHADOW_VECTORS'
+%		String #   18 @0x000000F3 = '_BEG_VECTORS'
+%		String #   19 @0x00000100 = '_END_VECTORS'
+%		String #   20 @0x0000010D = '_ROM_BEG_VECTORS'
+%		String #   21 @0x0000011E = 'C:\wdc\Projects\VGA\VGA.obj'
+%		String #   22 @0x0000013A = 'C:\wdc\Projects\VGA\VGA.asm'
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%

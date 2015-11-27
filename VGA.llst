@@ -1,0 +1,533 @@
+       -                
+     1 -                       ; File: VGA.asm
+     2 -                       ; 11/17/2015
+     3 -                       
+     4 -                         PW 80          ;Page Width (# of char/line)
+     5 -                         PL 60          ;Page Length for HP Laser
+     6 -                         INCLIST ON     ;Add Include files in Listing
+     7 -                       
+     8 -                       ;*********************************************
+     9 -                       ;Test for Valid Processor defined in -D option
+    10 -                       ;*********************************************
+    11 -                         IF USING_816
+    12 -                         ELSE
+    13 -                           EXIT  "Not Valid Processor: Use -DUSING_02, et
+    14 -                         ENDIF
+    15 -                       
+    16 -                         TITLE  "VGA VGA.asm"
+    17 -                         STTL
+    18 -                       
+    19 -             00007FC0  VIA_BASE:     EQU $7FC0     ; base address o
+    20 -             00007FC0  VIA_ORB:      EQU VIA_BASE
+    21 -             00007FC0  VIA_IRB:      EQU VIA_BASE
+    22 -             00007FC1  VIA_ORA:      EQU VIA_BASE+1
+    23 -             00007FC1  VIA_IRA:      EQU VIA_BASE+1
+    24 -             00007FC2  VIA_DDRB:     EQU VIA_BASE+2
+    25 -             00007FC3  VIA_DDRA:     EQU VIA_BASE+3
+    26 -             00007FC4  VIA_T1CLO:    EQU VIA_BASE+4
+    27 -             00007FC5  VIA_T1CHI:    EQU VIA_BASE+5
+    28 -             00007FC6  VIA_T1LLO:    EQU VIA_BASE+6
+    29 -             00007FC7  VIA_T1LHI:    EQU VIA_BASE+7
+    30 -             00007FC8  VIA_T2CLO:    EQU VIA_BASE+8
+    31 -             00007FC9  VIA_T2CHI:    EQU VIA_BASE+9
+    32 -             00007FCA  VIA_SR:       EQU VIA_BASE+10
+    33 -             00007FCB  VIA_ACR:      EQU VIA_BASE+11
+    34 -             00007FCC  VIA_PCR:      EQU VIA_BASE+12
+    35 -             00007FCD  VIA_IFR:      EQU VIA_BASE+13
+    36 -             00007FCE  VIA_IER:      EQU VIA_BASE+14
+    37 -             00007FCF  VIA_ORANH:    EQU VIA_BASE+15
+    38 -             00007FCF  VIA_IRANH:    EQU VIA_BASE+15
+    39 -                       
+    40 -             00007F00  VGA_BASE      EQU $7F00     ; base address o
+    41 -             00007F00  VGA_PRINT     EQU VGA_BASE
+    42 -             00007F01  VGA_COL       EQU VGA_BASE+$01
+    43 -             00007F02  VGA_ROW       EQU VGA_BASE+$02
+    44 -             00007F03  VGA_ROW_COLOR EQU VGA_BASE+$03
+    45 -             00007F04  VGA_ROW_BACK  EQU VGA_BASE+$04
+    46 -             00007F05  VGA_AUTO_INC  EQU VGA_BASE+$05
+       -                
+    47 -             00007F06  VGA_FILL_CHAR EQU VGA_BASE+$06
+    48 -             00007F07  VGA_FILL_COL  EQU VGA_BASE+$07
+    49 -             00007F08  VGA_FILL_BACK EQU VGA_BASE+$08
+    50 -                       
+    51 -             00007F10  VGA_CUR1_X    EQU VGA_BASE+$10
+    52 -             00007F11  VGA_CUR1_Y    EQU VGA_BASE+$11
+    53 -             00007F12  VGA_CUR1_MODE EQU VGA_BASE+$12
+    54 -             00007F13  VGA_CUR2_X    EQU VGA_BASE+$13
+    55 -             00007F14  VGA_CUR2_Y    EQU VGA_BASE+$14
+    56 -             00007F15  VGA_CUR2_MODE EQU VGA_BASE+$15
+    57 -                       
+    58 -             00007F20  SID_BASE      EQU $7F20     ; base address o
+    59 -             00007F20  SID_FR1LO     EQU SID_BASE
+    60 -             00007F21  SID_FR1HI     EQU SID_BASE+$01
+    61 -             00007F22  SID_PW1LO     EQU SID_BASE+$02
+    62 -             00007F23  SID_PW1HI     EQU SID_BASE+$03
+    63 -             00007F24  SID_CR1       EQU SID_BASE+$04
+    64 -             00007F25  SID_AD1       EQU SID_BASE+$05
+    65 -             00007F26  SID_SR1       EQU SID_BASE+$06
+    66 -                       
+    67 -             00007F27  SID_FR2LO     EQU SID_BASE+$07
+    68 -             00007F28  SID_FR2HI     EQU SID_BASE+$08
+    69 -             00007F29  SID_PW2LO     EQU SID_BASE+$09
+    70 -             00007F2A  SID_PW2HI     EQU SID_BASE+$0A
+    71 -             00007F2B  SID_CR2       EQU SID_BASE+$0B
+    72 -             00007F2C  SID_AD2       EQU SID_BASE+$0C
+    73 -             00007F2D  SID_SR2       EQU SID_BASE+$0D
+    74 -                       
+    75 -             00007F2E  SID_FR3LO     EQU SID_BASE+$0E
+    76 -             00007F2F  SID_FR3HI     EQU SID_BASE+$0F
+    77 -             00007F30  SID_PW3LO     EQU SID_BASE+$10
+    78 -             00007F31  SID_PW3HI     EQU SID_BASE+$11
+    79 -             00007F32  SID_CR3       EQU SID_BASE+$12
+    80 -             00007F33  SID_AD3       EQU SID_BASE+$13
+    81 -             00007F34  SID_SR3       EQU SID_BASE+$14
+    82 -                       
+    83 -             00007F35  SID_FCLO      EQU SID_BASE+$15
+    84 -             00007F36  SID_FCHI      EQU SID_BASE+$16
+    85 -             00007F37  SID_RESFIL    EQU SID_BASE+$17
+    86 -             00007F38  SID_MODVOL    EQU SID_BASE+$18
+    87 -                       
+    88 -             00000040  StringLo      EQU $40 ; Low pointer
+    89 -             00000041  StringHi      EQU $41 ; High pointer
+    90 -             00000042  Temp          EQU $42 ; Temp storage
+    91 -                       
+    92 -                         CHIP 65C02
+    93 -                         LONGI OFF
+    94 -                         LONGA OFF
+    95 -                       
+    96 -                         .STTL "VGA"
+    97 -                         .PAGE
+    98 -                                     ORG $0200
+    99 -                           START:
+   100 -                       
+   101 -                       FirstChar
+   102 -                       
+   103 - 00:0200  A9 20                      LDA #$20
+   104 - 00:0202  8D 06 7F                   STA VGA_FILL_CHAR
+   105 - 00:0205  20 E9 03                   JSR delay
+   106 -                       
+   107 -                       mainLoop              
+   108 -                                     
+   109 - 00:0208  A9 03                      LDA #03           ; Red
+   110 - 00:020A  A2 03                      LDX #03           ; Green
+   111 - 00:020C  A0 00                      LDY #00           ; Blue
+   112 - 00:020E  20 FF 03                   JSR calc_rgb
+   113 - 00:0211  8D 08 7F                   STA VGA_FILL_BACK
+   114 - 00:0214  20 F9 03                   JSR small_delay
+   115 - 00:0217  20 F9 03                   JSR small_delay
+   116 -                       
+   117 - 00:021A  A9 00                      LDA #00           ; Red
+   118 - 00:021C  A2 00                      LDX #00           ; Green
+   119 - 00:021E  A0 03                      LDY #03           ; Blue
+   120 - 00:0220  20 FF 03                   JSR calc_rgb
+   121 - 00:0223  8D 07 7F                   STA VGA_FILL_COL
+   122 - 00:0226  20 F9 03                   JSR small_delay
+   123 - 00:0229  20 F9 03                   JSR small_delay
+   124 -                       
+   125 - 00:022C  A9 01                      LDA #1
+   126 - 00:022E  8D 05 7F                   STA VGA_AUTO_INC
+   127 - 00:0231  20 F9 03                   JSR small_delay
+   128 -                       
+   129 - 00:0234  A2 00                      LDX #0
+   130 - 00:0236  A0 00                      LDY #0
+   131 - 00:0238  A9 xx                      LDA #<String1     ; Load String Point
+   132 - 00:023A  85 40                      STA StringLo
+   133 - 00:023C  A9 xx                      LDA #>String1
+   134 - 00:023E  85 41                      STA StringHi
+   135 - 00:0240  20 3F 04                   JSR printStringXY         
+   136 - 00:0243  20 F9 03                   JSR small_delay
+   137 -                                     
+   138 - 00:0246  A2 00                      LDX #0
+   139 - 00:0248  A0 02                      LDY #2
+   140 - 00:024A  20 18 04                   JSR setRowCol
+   141 - 00:024D  A9 01                      LDA #$01
+   142 - 00:024F  20 25 04                   JSR printHex
+   143 - 00:0252  A9 23                      LDA #$23
+   144 - 00:0254  20 25 04                   JSR printHex
+   145 - 00:0257  A9 45                      LDA #$45
+   146 - 00:0259  20 25 04                   JSR printHex
+   147 - 00:025C  A9 67                      LDA #$67
+   148 - 00:025E  20 25 04                   JSR printHex
+   149 - 00:0261  A9 89                      LDA #$89
+   150 - 00:0263  20 25 04                   JSR printHex
+   151 - 00:0266  A9 AB                      LDA #$AB
+   152 - 00:0268  20 25 04                   JSR printHex
+   153 - 00:026B  A9 CD                      LDA #$CD
+   154 - 00:026D  20 25 04                   JSR printHex
+   155 - 00:0270  A9 EF                      LDA #$EF
+   156 - 00:0272  20 25 04                   JSR printHex
+   157 -                                     
+   158 - 00:0275  4C 08 02                   JMP mainLoop
+   159 -                                     
+   160 - 00:0278  A9 07                      LDA #$07
+   161 - 00:027A  8D 38 7F                   STA SID_MODVOL
+   162 - 00:027D  20 F9 03                   JSR small_delay
+   163 - 00:0280  A9 14                      LDA #20
+   164 - 00:0282  8D 20 7F                   STA SID_FR1LO
+   165 - 00:0285  20 F9 03                   JSR small_delay
+   166 - 00:0288  A9 0A                      LDA #10
+   167 - 00:028A  8D 21 7F                   STA SID_FR1HI
+   168 - 00:028D  20 F9 03                   JSR small_delay
+   169 - 00:0290  A9 22                      LDA #$22
+   170 - 00:0292  8D 25 7F                   STA SID_AD1
+   171 - 00:0295  20 F9 03                   JSR small_delay
+   172 - 00:0298  A9 2F                      LDA #$2F
+   173 - 00:029A  8D 26 7F                   STA SID_SR1
+   174 - 00:029D  20 F9 03                   JSR small_delay
+   175 - 00:02A0  A9 21                      LDA #$21
+   176 - 00:02A2  8D 24 7F                   STA SID_CR1
+   177 - 00:02A5  20 F9 03                   JSR small_delay
+   178 -                       
+   179 - 00:02A8  20 E9 03                   JSR delay
+   180 -                       
+   181 - 00:02AB  A9 20                      LDA #$20
+   182 - 00:02AD  8D 24 7F                   STA SID_CR1
+   183 - 00:02B0  20 F9 03                   JSR small_delay
+   184 -                       
+   185 - 00:02B3  20 E9 03                   JSR delay
+   186 -                       
+   187 -                                     ;JMP FirstChar
+   188 -                       
+   189 -                       
+   190 - 00:02B6  A9 64                      LDA #100
+   191 - 00:02B8  8D 27 7F                   STA SID_FR2LO
+   192 - 00:02BB  20 F9 03                   JSR small_delay
+   193 - 00:02BE  A9 64                      LDA #100
+   194 - 00:02C0  8D 28 7F                   STA SID_FR2HI
+   195 - 00:02C3  20 F9 03                   JSR small_delay
+   196 - 00:02C6  A9 11                      LDA #$11
+   197 - 00:02C8  8D 2B 7F                   STA SID_CR2
+   198 - 00:02CB  20 F9 03                   JSR small_delay
+   199 -                       
+   200 - 00:02CE  A9 64                      LDA #100
+   201 - 00:02D0  8D 2E 7F                   STA SID_FR3LO
+   202 - 00:02D3  20 F9 03                   JSR small_delay
+   203 - 00:02D6  A9 64                      LDA #100
+   204 - 00:02D8  8D 2F 7F                   STA SID_FR3HI
+   205 - 00:02DB  20 F9 03                   JSR small_delay
+   206 - 00:02DE  A9 11                      LDA #$11
+   207 - 00:02E0  8D 32 7F                   STA SID_CR3
+   208 - 00:02E3  20 F9 03                   JSR small_delay
+   209 -                       
+   210 -                       
+   211 - 00:02E6  A9 28                      LDA #40
+   212 - 00:02E8  8D 20 7F                   STA SID_FR1LO
+   213 - 00:02EB  20 F9 03                   JSR small_delay
+   214 - 00:02EE  A9 28                      LDA #40
+   215 - 00:02F0  8D 21 7F                   STA SID_FR1HI
+   216 - 00:02F3  20 F9 03                   JSR small_delay
+   217 - 00:02F6  A9 11                      LDA #$11
+   218 - 00:02F8  8D 24 7F                   STA SID_CR1
+   219 - 00:02FB  20 F9 03                   JSR small_delay
+   220 -                       
+   221 - 00:02FE  A9 28                      LDA #40
+   222 - 00:0300  8D 27 7F                   STA SID_FR2LO
+   223 - 00:0303  20 F9 03                   JSR small_delay
+   224 - 00:0306  A9 28                      LDA #40
+   225 - 00:0308  8D 28 7F                   STA SID_FR2HI
+   226 - 00:030B  20 F9 03                   JSR small_delay
+   227 - 00:030E  A9 11                      LDA #$11
+   228 - 00:0310  8D 2B 7F                   STA SID_CR2
+   229 - 00:0313  20 F9 03                   JSR small_delay
+   230 -                       
+   231 - 00:0316  A9 28                      LDA #40
+   232 - 00:0318  8D 2E 7F                   STA SID_FR3LO
+   233 - 00:031B  20 F9 03                   JSR small_delay
+   234 - 00:031E  A9 28                      LDA #40
+   235 - 00:0320  8D 2F 7F                   STA SID_FR3HI
+   236 - 00:0323  20 F9 03                   JSR small_delay
+   237 - 00:0326  A9 11                      LDA #$11
+   238 - 00:0328  8D 32 7F                   STA SID_CR3
+   239 - 00:032B  20 F9 03                   JSR small_delay
+   240 -                       
+   241 - 00:032E  20 E9 03                   JSR delay
+   242 -                       
+   243 -                                     ;JMP FirstChar
+   244 -                       
+   245 - 00:0331  A9 01                      LDA #1
+   246 - 00:0333  8D 05 7F                   STA VGA_AUTO_INC
+   247 - 00:0336  20 F9 03                   JSR small_delay
+   248 -                       
+   249 -                       
+   250 - 00:0339  A2 02                      LDX #2
+   251 - 00:033B  A0 03                      LDY #3
+   252 - 00:033D  A9 xx                      LDA #<String1         ; Load String P
+   253 - 00:033F  85 40                      STA StringLo
+   254 - 00:0341  A9 xx                      LDA #>String1
+   255 - 00:0343  85 41                      STA StringHi
+   256 - 00:0345  20 3F 04                   JSR printStringXY
+   257 -                       
+   258 - 00:0348  A9 00                      LDA #00
+   259 - 00:034A  8D 05 7F                   STA VGA_AUTO_INC
+   260 - 00:034D  20 F9 03                   JSR small_delay
+   261 -                       
+   262 - 00:0350  A9 03                      LDA #3
+   263 - 00:0352  8D 10 7F                   STA VGA_CUR1_X
+   264 - 00:0355  20 F9 03                   JSR small_delay
+   265 -                       
+   266 - 00:0358  A9 04                      LDA #4
+   267 - 00:035A  8D 11 7F                   STA VGA_CUR1_Y
+   268 - 00:035D  20 F9 03                   JSR small_delay
+   269 -                       
+   270 - 00:0360  A9 07                      LDA #7
+   271 - 00:0362  8D 12 7F                   STA VGA_CUR1_MODE
+   272 - 00:0365  20 F9 03                   JSR small_delay
+   273 -                       
+   274 - 00:0368  A9 02                      LDA #2
+   275 - 00:036A  8D 13 7F                   STA VGA_CUR2_X
+   276 - 00:036D  20 F9 03                   JSR small_delay
+   277 -                       
+   278 - 00:0370  A9 03                      LDA #3
+   279 - 00:0372  8D 14 7F                   STA VGA_CUR2_Y
+   280 - 00:0375  20 F9 03                   JSR small_delay
+   281 -                       
+   282 - 00:0378  A9 02                      LDA #2
+   283 - 00:037A  8D 15 7F                   STA VGA_CUR2_MODE
+   284 - 00:037D  20 F9 03                   JSR small_delay
+   285 -                       
+   286 -                                     ;JMP FirstChar
+   287 -                       
+   288 - 00:0380  A9 32                      LDA #50
+   289 - 00:0382  8D 02 7F     colLoop       STA VGA_ROW
+   290 - 00:0385  20 F9 03                   JSR small_delay
+   291 - 00:0388  2A                         ROL
+   292 - 00:0389  2A                         ROL
+   293 - 00:038A  8D 04 7F                   STA VGA_ROW_BACK
+   294 - 00:038D  20 F9 03                   JSR small_delay
+   295 - 00:0390  6A                         ROR
+   296 - 00:0391  6A                         ROR
+   297 - 00:0392  3A                         DEC
+   298 -                                     ;BNE colLoop
+   299 -                       
+   300 - 00:0393  20 E9 03                   JSR delay
+   301 -                       
+   302 - 00:0396  A9 30                      LDA #$30
+   303 - 00:0398  8D 06 7F                   STA VGA_FILL_CHAR
+   304 - 00:039B  20 E9 03                   JSR delay
+   305 - 00:039E  A9 FC                      LDA #$FC
+   306 - 00:03A0  8D 07 7F                   STA VGA_FILL_COL
+   307 - 00:03A3  20 E9 03                   JSR delay
+   308 - 00:03A6  A9 00                      LDA #$00
+   309 - 00:03A8  8D 08 7F                   STA VGA_FILL_BACK
+   310 - 00:03AB  20 E9 03                   JSR delay
+   311 -                       
+   312 -                       
+   313 - 00:03AE  A9 31                      LDA #$31
+   314 - 00:03B0  8D 06 7F                   STA VGA_FILL_CHAR
+   315 - 00:03B3  20 E9 03                   JSR delay
+   316 - 00:03B6  A9 CC                      LDA #$CC
+   317 - 00:03B8  8D 07 7F                   STA VGA_FILL_COL
+   318 - 00:03BB  20 E9 03                   JSR delay
+   319 - 00:03BE  A9 3C                      LDA #$3C
+   320 - 00:03C0  8D 08 7F                   STA VGA_FILL_BACK
+   321 - 00:03C3  20 E9 03                   JSR delay
+   322 -                       
+   323 - 00:03C6  A9 32                      LDA #$32
+   324 - 00:03C8  8D 06 7F                   STA VGA_FILL_CHAR
+   325 - 00:03CB  20 E9 03                   JSR delay
+   326 - 00:03CE  A9 00                      LDA #$00
+   327 - 00:03D0  8D 07 7F                   STA VGA_FILL_COL
+   328 - 00:03D3  20 E9 03                   JSR delay
+   329 - 00:03D6  A9 F0                      LDA #$F0
+   330 - 00:03D8  8D 08 7F                   STA VGA_FILL_BACK
+   331 - 00:03DB  20 E9 03                   JSR delay
+   332 -                       
+   333 - 00:03DE  A9 20                      LDA #$20
+   334 - 00:03E0  8D 06 7F                   STA VGA_FILL_CHAR
+   335 - 00:03E3  20 E9 03                   JSR delay
+   336 -                       
+   337 - 00:03E6  4C 00 02                   JMP FirstChar
+   338 -                       
+   339 -                       ;-------------------------------------------------
+   340 -                       ; delay: delay to see changes on screen.
+   341 -                       ;-------------------------------------------------
+   342 -                       
+   343 - 00:03E9  A9 10        delay         LDA #$10
+   344 - 00:03EB  A0 00                      LDY #$00            ; Loop 256*256 ti
+   345 - 00:03ED  A2 00                      LDX #$00
+   346 -                       
+   347 - 00:03EF  CA           dloop1        DEX
+   348 - 00:03F0  D0 FD                      BNE dloop1
+   349 - 00:03F2  88                         DEY
+   350 - 00:03F3  D0 FA                      BNE dloop1
+   351 - 00:03F5  3A                         DEC
+   352 - 00:03F6  D0 F7                      BNE dloop1
+   353 - 00:03F8  60                         RTS
+   354 -                       
+   355 -                       ;-------------------------------------------------
+   356 -                       ; small_delay: Small delay for propeller to catch 
+   357 -                       ;-------------------------------------------------
+   358 -                       
+   359 - 00:03F9  A2 20        small_delay   LDX #$20
+   360 -                       
+   361 - 00:03FB  CA           dloop2        DEX
+   362 - 00:03FC  D0 FD                      BNE dloop2
+   363 - 00:03FE  60                         RTS
+   364 -                       
+   365 -                       ;-------------------------------------------------
+   366 -                       ; calc_rgb: A = R, X = G, Y = B values between 0 a
+   367 -                       ; Resulting byte is RRGGBB00 each two bit values.
+   368 -                       ;-------------------------------------------------
+   369 -                       
+   370 - 00:03FF  2A           calc_rgb      ROL
+   371 - 00:0400  2A                         ROL
+   372 - 00:0401  2A                         ROL
+   373 - 00:0402  2A                         ROL
+   374 - 00:0403  2A                         ROL
+   375 - 00:0404  2A                         ROL
+   376 - 00:0405  85 42                      STA Temp
+   377 - 00:0407  8A                         TXA
+   378 - 00:0408  2A                         ROL
+   379 - 00:0409  2A                         ROL
+   380 - 00:040A  2A                         ROL
+   381 - 00:040B  2A                         ROL
+   382 - 00:040C  18                         CLC
+   383 - 00:040D  65 42                      ADC Temp
+   384 - 00:040F  85 42                      STA Temp
+   385 - 00:0411  98                         TYA
+   386 - 00:0412  2A                         ROL
+   387 - 00:0413  2A                         ROL
+   388 - 00:0414  18                         CLC
+   389 - 00:0415  65 42                      ADC Temp
+   390 - 00:0417  60                         RTS
+   391 -                       
+   392 -                       ;-------------------------------------------------
+   393 -                       ; setRowCol: Set Row and col from X and Y.
+   394 -                       ;-------------------------------------------------
+   395 -                       setRowCol
+   396 - 00:0418  8E 01 7F                   STX VGA_COL
+   397 - 00:041B  20 F9 03                   JSR small_delay
+   398 - 00:041E  8C 02 7F                   STY VGA_ROW
+   399 - 00:0421  20 F9 03                   JSR small_delay
+   400 - 00:0424  60                         RTS
+   401 -                                     
+   402 -                       ;-------------------------------------------------
+   403 -                       ; printHex: Print a HEX value, the Woz way...
+   404 -                       ;-------------------------------------------------
+   405 -                       
+   406 -                       printHex
+   407 - 00:0425  48                         PHA               
+   408 - 00:0426  4A                         LSR
+   409 - 00:0427  4A                         LSR
+   410 - 00:0428  4A                         LSR               
+   411 - 00:0429  4A                         LSR
+   412 - 00:042A  20 2E 04                   JSR PRHEX         
+   413 - 00:042D  68                         PLA               
+   414 - 00:042E  29 0F        PRHEX         AND #%00001111    ; Mask L
+   415 - 00:0430  09 30                      ORA #"0"          
+   416 - 00:0432  C9 3A                      CMP #"9"+1        ; Is it 
+   417 - 00:0434  90 02                      BCC ECHO          
+   418 - 00:0436  69 06                      ADC #6            
+   419 - 00:0438  8D 00 7F     ECHO          STA VGA_PRINT     ; Print
+   420 - 00:043B  20 F9 03                   JSR small_delay   ; Wait t
+   421 - 00:043E  60                         RTS
+   422 -                                     
+   423 -                       ;-------------------------------------------------
+   424 -                       ; printStringXY: Print a string preloaded in Strin
+   425 -                       ;-------------------------------------------------
+   426 -                       
+   427 -                       printStringXY
+   428 - 00:043F  8E 01 7F                   STX VGA_COL
+   429 - 00:0442  20 F9 03                   JSR small_delay
+   430 - 00:0445  8C 02 7F                   STY VGA_ROW
+   431 - 00:0448  20 F9 03                   JSR small_delay
+   432 -                       
+   433 -                       ;-------------------------------------------------
+   434 -                       ; printString: Print a string preloaded in StringL
+   435 -                       ;-------------------------------------------------
+   436 -                       
+   437 -                       printString
+   438 - 00:044B  A0 00                      LDY #0
+   439 - 00:044D  B1 40        nextChar      LDA (StringLo),Y
+   440 - 00:044F  F0 09                      BEQ done_Printing
+   441 - 00:0451  8D 00 7F                   STA VGA_PRINT
+   442 - 00:0454  20 F9 03                   JSR small_delay
+   443 - 00:0457  C8                         INY
+   444 - 00:0458  80 F3                      BRA nextChar
+   445 -                       done_Printing
+   446 - 00:045A  60                         RTS
+   447 -                       ;-------------------------------------------------
+   448 -                       ; FUNCTION NAME : Event Hander re-vectors
+   449 -                       ;-------------------------------------------------
+   450 -                       IRQHandler:
+   451 - 00:045B  48                         PHA
+   452 - 00:045C  68                         PLA
+   453 - 00:045D  40                         RTI
+   454 -                       
+   455 -                       badVec:     ; $FFE0 - IRQRVD2(134)
+   456 - 00:045E  08                         PHP
+   457 - 00:045F  48                         PHA
+   458 - 00:0460  A9 FF                      LDA #$FF
+   459 -                                     ;clear Irq
+   460 - 00:0462  68                         PLA
+   461 - 00:0463  28                         PLP
+   462 - 00:0464  40                         RTI
+   463 -                       
+   464 -                       
+   465 -                           DATA
+   466 -                       
+   467 -                       String1
+   468 - 00:0465  54 65 73 74                BYTE "Testing printing a string...", 
+       - 00:0469  69 6E 67 20  
+       - 00:046D  70 72 69 6E  
+       - 00:0471  74 69 6E 67  
+       - 00:0475  20 61 20 73  
+       - 00:0479  74 72 69 6E  
+       - 00:047D  67 2E 2E 2E  
+       -                   00:001C: 00 
+   469 - 00:0482                   ENDS
+   470 -                       
+   471 -                       ;-----------------------------
+   472 -                       ;
+   473 -                       ;       Reset and Interrupt Vectors (define for 
+   474 -                       ;
+   475 -                       ;-----------------------------
+   476 -                       
+   477 -                       Shadow_VECTORS  SECTION OFFSET $7EE0
+   478 -                                                   ;65C816 Interrupt Vect
+   479 -                                                   ;Status bit E = 0 (Nat
+   480 - 00:7EE0  5E 04                      DW badVec     ; $FFE0 - IRQRVD4(816)
+   481 - 00:7EE2  5E 04                      DW badVec     ; $FFE2 - IRQRVD5(816)
+   482 - 00:7EE4  5E 04                      DW badVec     ; $FFE4 - COP(816)
+   483 - 00:7EE6  5E 04                      DW badVec     ; $FFE6 - BRK(816)
+   484 - 00:7EE8  5E 04                      DW badVec     ; $FFE8 - ABORT(816)
+   485 - 00:7EEA  5E 04                      DW badVec     ; $FFEA - NMI(816)
+   486 - 00:7EEC  5E 04                      DW badVec     ; $FFEC - IRQRVD(816)
+   487 - 00:7EEE  5E 04                      DW badVec     ; $FFEE - IRQ(816)
+   488 -                                                   ;Status bit E = 1 (Emu
+   489 - 00:7EF0  5E 04                      DW badVec     ; $FFF0 - IRQRVD2(8 bit
+   490 - 00:7EF2  5E 04                      DW badVec     ; $FFF2 - IRQRVD1(8 bit
+   491 - 00:7EF4  5E 04                      DW badVec     ; $FFF4 - COP(8 bit Emu
+   492 - 00:7EF6  5E 04                      DW badVec     ; $FFF6 - IRQRVD0(8 bit
+   493 - 00:7EF8  5E 04                      DW badVec     ; $FFF8 - ABORT(8 bit E
+   494 -                                                   ; Common 8 bit Vectors
+   495 - 00:7EFA  5E 04                      DW badVec     ; $FFFA -  NMIRQ (ALL)
+   496 - 00:7EFC  00 02                      DW START      ; $FFFC -  RESET (ALL)
+   497 - 00:7EFE  5B 04                      DW IRQHandler ; $FFFE -  IRQBRK (ALL)
+   498 - 00:7F00                   ENDS
+   499 -                       
+   500 -                       vectors SECTION OFFSET $FFE0
+   501 -                                                   
+   502 -                                                   
+   503 - 00:FFE0  5E 04                      DW badVec     ; $FFE0 - IRQRVD4(816)
+   504 - 00:FFE2  5E 04                      DW badVec     ; $FFE2 - IRQRVD5(816)
+   505 - 00:FFE4  5E 04                      DW badVec     ; $FFE4 - COP(816)
+   506 - 00:FFE6  5E 04                      DW badVec     ; $FFE6 - BRK(816)
+   507 - 00:FFE8  5E 04                      DW badVec     ; $FFE8 - ABORT(816)
+   508 - 00:FFEA  5E 04                      DW badVec     ; $FFEA - NMI(816)
+   509 - 00:FFEC  5E 04                      DW badVec     ; $FFEC - IRQRVD(816)
+   510 - 00:FFEE  5E 04                      DW badVec     ; $FFEE - IRQ(816)
+   511 -                                                   
+   512 - 00:FFF0  5E 04                      DW badVec     ; $FFF0 - IRQRVD2(8 bit
+   513 - 00:FFF2  5E 04                      DW badVec     ; $FFF2 - IRQRVD1(8 bit
+   514 - 00:FFF4  5E 04                      DW badVec     ; $FFF4 - COP(8 bit Emu
+   515 - 00:FFF6  5E 04                      DW badVec     ; $FFF6 - IRQRVD0(8 bit
+   516 - 00:FFF8  5E 04                      DW badVec     ; $FFF8 - ABORT(8 bit E
+   517 -                                                   
+   518 - 00:FFFA  5E 04                      DW badVec     ; $FFFA -  NMIRQ (ALL)
+   519 - 00:FFFC  00 02                      DW START      ; $FFFC -  RESET (ALL)
+   520 - 00:FFFE  5B 04                      DW IRQHandler ; $FFFE -  IRQBRK (ALL)
+   521 - 01:0000                   ENDS
+   522 -                           END
+       -          mbled: 522  
+       -                  Errors: 0
