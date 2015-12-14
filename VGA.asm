@@ -153,6 +153,8 @@ tstLoop2	  STA VGA_PRINT
 			  DEY
 			  BNE tstLoop2
 			  
+			  JMP mainLoop
+			  
 			  LDX #0
 			  LDY #2
 			  JSR setRowCol

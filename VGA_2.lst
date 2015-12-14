@@ -1,0 +1,2497 @@
+  Mon Dec 14 2015 11:10                                                Page 1
+
+    "VGA VGA.asm"
+    
+
+                     ***************************************
+                     **      WDC 65C816 Macro Assembler   **
+                     **                                   **
+                     **     Version 3.49.1- Feb  6 2006    **
+                     ***************************************
+
+     1                        ; File: VGA_2.asm
+     2                        ; 12/10/2015
+     3                        
+     4                        ;############################# DESCIPTION ########
+                    ################
+     5                        
+     6                        ; Transfer from W65C816SXB to Propeller
+     7                        
+     8                        ; 1. W65C816SXB waits for PB7 (P15) to be low, $80
+     9                        ; 2. W65C816SXB puts data on PIA PA
+    10                        ; 3. W65C816SXB puts data on PIA PB with PB6 high.
+                     $40
+    11                        ; 4. Propeller waits for PB6 (P14) to go high.
+    12                        ; 5. Propeller reads PIA PA-PB and sets P15 high.
+    13                        ; 6, W65C816SXB waits for PB7 (P15)to be high, $80
+    14                        ; 7. W65C816SXB sets PIA PB6 (P14) low. $40
+    15                        ; 8. Propeller waits for PB6 (P14) to go low.
+    16                        ; 9. Propeller does it's thing...
+    17                        ; 10. Propeller sets P15 Low.
+    18                        
+    19                        ; Note: All connections to the W65C816SXB board ha
+                    ve a 1Kohm resistor in series...
+    20                        
+    21                        ;########################### PIN ASSIGNMENTS #####
+                    ################
+    22                        
+    23                        ;  P0  - Data 0 - PIA PA0 via 1Kohm resistor
+    24                        ;  P1  - Data 1 - PIA PA1 via 1Kohm resistor
+    25                        ;  P2  - Data 2 - PIA PA2 via 1Kohm resistor
+    26                        ;  P3  - Data 3 - PIA PA3 via 1Kohm resistor 
+    27                        ;  P4  - Data 4 - PIA PA4 via 1Kohm resistor 
+    28                        ;  P5  - Data 5 - PIA PA5 via 1Kohm resistor
+    29                        ;  P6  - Data 6 - PIA PA6 via 1Kohm resistor
+    30                        ;  P7  - Data 7 - PIA PA7 via 1Kohm resistor
+    31                        ;  P8  - Address 0 - PIA PB0 via 1Kohm resistor
+    32                        ;  P9  - Address 1 - PIA PB1 via 1Kohm resistor
+    33                        ;  P10 - Address 2 - PIA PB2 via 1Kohm resistor
+    34                        ;  P11 - Address 3 - PIA PB3 via 1Kohm resistor
+    35                        ;  P12 - Address 4 - PIA PB4 via 1Kohm resistor
+    36                        ;  P13 - Address 5 - 0 for VGA and 1 for SID  - PI
+                    A PB5 via 1Kohm resistor
+    37                        ;  P14 - Flag Write - Wait for High from W65C816SX
+                    B, once propeller flag busy, W65C816SXB sets low. - PIA PB6 
+                    via 1Kohm resistor
+    38                        ;  P15 - Flag BUSY - Set high by propeller when pr
+                    ocessing. - PIA PB7 via 1Kohm resistor, only input...    
+    39                        ;  P16 - VGA VSync - 270 ohm resistor to D-Sub 14
+    40                        ;  P17 - VGA HSync - 270 ohm resistor to D-Sub 13 
+    41                        ;  P18 - VGA B0 - 560 ohm resistor to D-Sub 3
+  Mon Dec 14 2015 11:10                                                Page 2
+
+    "VGA VGA.asm"
+    
+
+    42                        ;  P19 - VGA B1 - 270 ohm resistor to D-Sub 3
+    43                        ;  P20 - VGA G0 - 560 ohm resistor to D-Sub 2
+    44                        ;  P21 - VGA G1 - 270 ohm resistor to D-Sub 2
+    45                        ;  P22 - VGA R0 - 560 ohm resistor to D-Sub 1
+    46                        ;  P23 - VGA R1 - 270 ohm resistor to D-Sub 1
+    47                        ;  P24 - SID Right Channel connect to amplifier fo
+                    r headphones or line in to computer 
+    48                        ;  P25 - SID Left Channel connect to amplifier for
+                     headphones or line in to computer 
+    49                        ;  P26 - 
+    50                        ;  P27 - 
+    51                        ;  P28 - I2C SCL
+    52                        ;  P29 - I2C SDA
+    53                        ;  P30 - Serial Tx
+    54                        ;  P31 - Serial Rx
+    55                        
+    56                        ;#################################################
+                    ################
+    57                        
+    58                        
+    59                        	PW 80          ;Page Width (# of char/line)
+    60                        	PL 60          ;Page Length for HP Laser
+    61                        	INCLIST ON     ;Add Include files in Listing
+    62                        
+    63                        ;*********************************************
+    64                        ;Test for Valid Processor defined in -D option
+    65                        ;*********************************************
+    66                        	IF USING_816
+    67                        	ELSE
+    68                        		EXIT  "Not Valid Processor: Use -DUSING_
+                    02, etc."
+    69                        	ENDIF
+    70                        
+    71                        	TITLE  "VGA VGA.asm"
+    72                        	STTL
+    73                        
+    74             00007FC0   VIA_BASE		EQU $7FC0		; base a
+                    ddress of VIA port on SXB
+    75             00007FC0   VIA_ORB			EQU VIA_BASE
+    76             00007FC0   VIA_IRB			EQU VIA_BASE
+    77             00007FC1   VIA_ORA			EQU VIA_BASE+1
+    78             00007FC1   VIA_IRA			EQU VIA_BASE+1
+    79             00007FC2   VIA_DDRB		EQU VIA_BASE+2
+    80             00007FC3   VIA_DDRA		EQU VIA_BASE+3
+    81             00007FC4   VIA_T1CLO		EQU VIA_BASE+4
+    82             00007FC5   VIA_T1CHI		EQU VIA_BASE+5
+    83             00007FC6   VIA_T1LLO		EQU VIA_BASE+6
+    84             00007FC7   VIA_T1LHI		EQU VIA_BASE+7
+    85             00007FC8   VIA_T2CLO		EQU VIA_BASE+8
+    86             00007FC9   VIA_T2CHI		EQU VIA_BASE+9
+    87             00007FCA   VIA_SR			EQU VIA_BASE+10
+    88             00007FCB   VIA_ACR			EQU VIA_BASE+11
+    89             00007FCC   VIA_PCR			EQU VIA_BASE+12
+    90             00007FCD   VIA_IFR			EQU VIA_BASE+13
+    91             00007FCE   VIA_IER			EQU VIA_BASE+14
+  Mon Dec 14 2015 11:10                                                Page 3
+
+    "VGA VGA.asm"
+    
+
+    92             00007FCF   VIA_ORANH		EQU VIA_BASE+15
+    93             00007FCF   VIA_IRANH		EQU VIA_BASE+15
+    94                        
+    95             00007FA0   PIA_BASE		EQU $7FA0		; base a
+                    ddress of PIA port on SXB
+    96             00007FA0   PIA_ORA			EQU PIA_BASE
+    97             00007FA0   PIA_IRA			EQU PIA_BASE
+    98             00007FA0   PIA_DDRA		EQU PIA_BASE
+    99             00007FA1   PIA_CTRLA		EQU PIA_BASE+1
+   100             00007FA2   PIA_ORB			EQU PIA_BASE+2
+   101             00007FA2   PIA_IRB			EQU PIA_BASE+2
+   102             00007FA2   PIA_DDRB		EQU PIA_BASE+2
+   103             00007FA3   PIA_CTRLB		EQU PIA_BASE+3
+   104                        
+   105             00000000   VGA_BASE		EQU $00		; "base address"
+                     of VGA, this address is sent to the propeller
+   106             00000000   VGA_PRINT		EQU VGA_BASE
+   107             00000001   VGA_COL			EQU VGA_BASE+$01
+   108             00000002   VGA_ROW			EQU VGA_BASE+$02
+   109             00000003   VGA_ROW_COLOR	EQU VGA_BASE+$03
+   110             00000004   VGA_ROW_BACK	EQU VGA_BASE+$04
+   111             00000005   VGA_AUTO_INC	EQU VGA_BASE+$05
+   112             00000006   VGA_FILL_CHAR	EQU VGA_BASE+$06
+   113             00000007   VGA_FILL_COL	EQU VGA_BASE+$07
+   114             00000008   VGA_FILL_BACK	EQU VGA_BASE+$08
+   115             00000009   VGA_SCROLL_UP	EQU VGA_BASE+$09
+   116             0000000A   VGA_SCROLL_DN	EQU VGA_BASE+$0A
+   117                        
+   118             00000010   VGA_CUR1_X		EQU VGA_BASE+$10
+   119             00000011   VGA_CUR1_Y		EQU VGA_BASE+$11
+   120             00000012   VGA_CUR1_MODE	EQU VGA_BASE+$12
+   121             00000013   VGA_CUR2_X		EQU VGA_BASE+$13
+   122             00000014   VGA_CUR2_Y		EQU VGA_BASE+$14
+   123             00000015   VGA_CUR2_MODE	EQU VGA_BASE+$15
+   124                        
+   125             00000020   SID_BASE		EQU $20		; "base address"
+                     of SID emulation, this address is sent to the propeller
+   126             00000020   SID_FR1LO		EQU SID_BASE
+   127             00000021   SID_FR1HI		EQU SID_BASE+$01
+   128             00000022   SID_PW1LO		EQU SID_BASE+$02
+   129             00000023   SID_PW1HI		EQU SID_BASE+$03
+   130             00000024   SID_CR1			EQU SID_BASE+$04
+   131             00000025   SID_AD1			EQU SID_BASE+$05
+   132             00000026   SID_SR1			EQU SID_BASE+$06
+   133                        
+   134             00000027   SID_FR2LO		EQU SID_BASE+$07
+   135             00000028   SID_FR2HI		EQU SID_BASE+$08
+   136             00000029   SID_PW2LO		EQU SID_BASE+$09
+   137             0000002A   SID_PW2HI		EQU SID_BASE+$0A
+   138             0000002B   SID_CR2			EQU SID_BASE+$0B
+   139             0000002C   SID_AD2			EQU SID_BASE+$0C
+   140             0000002D   SID_SR2			EQU SID_BASE+$0D
+   141                        
+   142             0000002E   SID_FR3LO		EQU SID_BASE+$0E
+   143             0000002F   SID_FR3HI		EQU SID_BASE+$0F
+  Mon Dec 14 2015 11:10                                                Page 4
+
+    "VGA VGA.asm"
+    
+
+   144             00000030   SID_PW3LO		EQU SID_BASE+$10
+   145             00000031   SID_PW3HI		EQU SID_BASE+$11
+   146             00000032   SID_CR3			EQU SID_BASE+$12
+   147             00000033   SID_AD3			EQU SID_BASE+$13
+   148             00000034   SID_SR3			EQU SID_BASE+$14
+   149                        
+   150             00000035   SID_FCLO		EQU SID_BASE+$15
+   151             00000036   SID_FCHI		EQU SID_BASE+$16
+   152             00000037   SID_RESFIL		EQU SID_BASE+$17
+   153             00000038   SID_MODVOL		EQU SID_BASE+$18
+   154                        
+   155                        ; Crazy idea for future project...
+   156                        ; Include 3 other SID Cogs to emulate 4 sids.
+   157                        ; Output induvudual channels so you can pan left/r
+                    ight and mix separately.
+   158                        ; EQU SID_BASE+$19 to select sid chip, don't have 
+                    room for all addresses.
+   159                        
+   160                        
+   161             00000041   NOTE1_ON		EQU $41	; Square
+   162             00000040   NOTE1_OFF		EQU $40
+   163             00000081   NOTE2_ON		EQU $81 ; Noise
+   164             00000080   NOTE2_OFF		EQU $80
+   165             00000021   NOTE3_ON		EQU $21 ; Sawtooth
+   166             00000020   NOTE3_OFF		EQU $20
+   167                        
+   168                        
+   169                        ; Zero Page stuff
+   170                        
+   171                        ; String Pointers
+   172             00000040   StringLo		EQU $40 ; Low pointer
+   173             00000041   StringHi		EQU $41 ; High pointer
+   174                        ; Music Pointers
+   175             00000042   MusicLo			EQU	$42 ; Low Music 
+                    Pointer
+   176             00000043   MusicHi			EQU	$43 ; High Music
+                     Pointer
+   177             00000044   NoteLo			EQU $44 ; Value of the n
+                    ote in the SID
+   178             00000045   NoteHi			EQU $45
+   179             00000046   Temp_Color		EQU $46 ; Color rotation
+                     helpers
+   180             00000047   Current_Color	EQU $47
+   181                        
+   182                        ; Temp Storage
+   183             00000060   Temp			EQU $60 ; Temp storage
+   184                        
+   185                        	CHIP 65C02
+   186                        	LONGI OFF
+   187                        	LONGA OFF
+   188                        
+   189                        	.STTL "VGA"
+   190                        	.PAGE
+   191                        				ORG $0200
+  Mon Dec 14 2015 11:10                                                Page 5
+
+    "VGA VGA.asm"
+    "VGA"
+
+   192                        START
+   193                        							
+                    			; Init PIA, a quite interesting chip...
+   194 00:0200: A9 00        				LDA #$00		
+                    		; Set DDR
+   195 00:0202: 8D A1 7F     				STA PIA_CTRLA
+   196 00:0205: 8D A3 7F     				STA PIA_CTRLB
+   197                        				
+   198 00:0208: A9 FF        				LDA #$FF		
+                    		; Make all output
+   199 00:020A: 8D A0 7F     				STA PIA_DDRA
+   200 00:020D: A9 7F        				LDA #$7F
+   201 00:020F: 8D A2 7F     				STA PIA_DDRB		
+                    	; Bit 0-7 output, bit 8 input
+   202                        
+   203 00:0212: A9 04        				LDA #$04		
+                    		; Set OR/IR
+   204 00:0214: 8D A1 7F     				STA PIA_CTRLA
+   205 00:0217: 8D A3 7F     				STA PIA_CTRLB
+   206                        
+   207 00:021A: A9 xx        				LDA #<MusicData     	
+                    ; Reset Music Pointers.
+   208 00:021C: 85 42        				STA MusicLo
+   209 00:021E: A9 xx        				LDA #>MusicData
+   210 00:0220: 85 43        				STA MusicHi
+   211                        				
+   212 00:0222: A9 20        				LDA #$20		
+                    		; Blank Screen
+   213 00:0224: A2 06        				LDX #VGA_FILL_CHAR
+   214 00:0226: 20 CF 04     				JSR writeToPropeller
+   215                        				
+   216 00:0229: A9 03        				LDA #03			
+                    		; Red
+   217 00:022B: A2 03        				LDX #03			
+                    		; Green
+   218 00:022D: A0 00        				LDY #00			
+                    		; Blue
+   219 00:022F: 20 11 05     				JSR calc_rgb
+   220 00:0232: A2 07        				LDX #VGA_FILL_COL	
+                    	; Yello Text
+   221 00:0234: 20 CF 04     				JSR writeToPropeller	
+   222                        
+   223 00:0237: A9 00        				LDA #00			
+                    		; Red
+   224 00:0239: A2 00        				LDX #00			
+                    		; Green
+   225 00:023B: A0 02        				LDY #02			
+                    		; Blue
+   226 00:023D: 20 11 05     				JSR calc_rgb
+   227 00:0240: A2 08        				LDX #VGA_FILL_BACK	
+                    	; Blue background
+   228 00:0242: 20 CF 04     				JSR writeToPropeller	
+                    				
+   229                        				
+   230 00:0245: A9 01        				LDA #$1			
+  Mon Dec 14 2015 11:10                                                Page 6
+
+    "VGA VGA.asm"
+    "VGA"
+
+                    		; Print with one char at the time
+   231 00:0247: A2 05        				LDX #VGA_AUTO_INC
+   232 00:0249: 20 CF 04     				JSR writeToPropeller
+   233                        
+   234 00:024C: A2 1E        				LDX	#30		
+                    			; Print String
+   235 00:024E: A0 00        				LDY #0
+   236 00:0250: A9 xx        				LDA #<String1     	
+                    	; Load String Pointers.
+   237 00:0252: 85 40        				STA StringLo
+   238 00:0254: A9 xx        				LDA #>String1
+   239 00:0256: 85 41        				STA StringHi
+   240 00:0258: 20 4F 05     				JSR printStringXY
+   241                        				
+   242 00:025B: A9 1F        				LDA #$1F
+   243 00:025D: A2 38        				LDX #SID_MODVOL		
+                    	; Full volumne, Low Pass filter
+   244 00:025F: 20 CF 04     				JSR writeToPropeller
+   245                        
+   246 00:0262: A9 F1        				LDA #$F1
+   247 00:0264: A2 37        				LDX #SID_RESFIL		
+                    	; Full Resonance, filter 1 enabled.
+   248 00:0266: 20 CF 04     				JSR writeToPropeller
+   249                        				
+   250 00:0269: A9 25        				LDA #$25		
+                    		; Attack = 2, Decay = 5, Sustain = 9 and Release
+                     = 6 for Channel 1
+   251 00:026B: A2 25        				LDX #SID_AD1
+   252 00:026D: 20 CF 04     				JSR writeToPropeller
+   253 00:0270: A9 96        				LDA #$96
+   254 00:0272: A2 26        				LDX #SID_SR1
+   255 00:0274: 20 CF 04     				JSR writeToPropeller
+   256                        				
+   257 00:0277: A9 08        				LDA #$08		
+                    		; Attack = 0, Decay = 8, Sustain = 4 and Release
+                     = 7 for Channel 2
+   258 00:0279: A2 2C        				LDX #SID_AD2
+   259 00:027B: 20 CF 04     				JSR writeToPropeller
+   260 00:027E: A9 47        				LDA #$47
+   261 00:0280: A2 2D        				LDX #SID_SR2
+   262 00:0282: 20 CF 04     				JSR writeToPropeller
+   263                        				
+   264 00:0285: A9 74        				LDA #$74		
+                    		; Attack = 7, Decay = 4, Sustain = 8 and Release
+                     = 9 for Channel 3
+   265 00:0287: A2 33        				LDX #SID_AD3
+   266 00:0289: 20 CF 04     				JSR writeToPropeller
+   267 00:028C: A9 89        				LDA #$89
+   268 00:028E: A2 34        				LDX #SID_SR3
+   269 00:0290: 20 CF 04     				JSR writeToPropeller
+   270                        				
+   271 00:0293: A9 07        				LDA #>1928		
+                    		; Pulse Width to 1928 for Channel 1
+   272 00:0295: A2 22        				LDX #SID_PW1LO
+   273 00:0297: 20 CF 04     				JSR writeToPropeller
+  Mon Dec 14 2015 11:10                                                Page 7
+
+    "VGA VGA.asm"
+    "VGA"
+
+   274 00:029A: A9 07        				LDA #>1928
+   275 00:029C: A2 23        				LDX #SID_PW1HI
+   276 00:029E: 20 CF 04     				JSR writeToPropeller
+   277                        				
+   278                        				
+   279 00:02A1: A2 12        				LDX	#18		
+                    			; Print 0-64 of char set.
+   280 00:02A3: A0 03        				LDY #3
+   281 00:02A5: 20 43 05     				JSR setXY
+   282 00:02A8: A9 00        				LDA #0
+   283 00:02AA: A2 00        				LDX #VGA_PRINT
+   284 00:02AC: 20 CF 04     l1				JSR writeToPropeller
+   285 00:02AF: 1A           				INC
+   286 00:02B0: C9 40        				CMP #64
+   287 00:02B2: D0 F8        				BNE l1
+   288                        				
+   289 00:02B4: A2 12        				LDX	#18		
+                    			; Print 65-128 of char set.
+   290 00:02B6: A0 04        				LDY #4
+   291 00:02B8: 20 43 05     				JSR setXY
+   292 00:02BB: A9 40        				LDA #64
+   293 00:02BD: A2 00        				LDX #VGA_PRINT
+   294 00:02BF: 20 CF 04     l2				JSR writeToPropeller
+   295 00:02C2: 1A           				INC
+   296 00:02C3: C9 80        				CMP #128
+   297 00:02C5: D0 F8        				BNE l2
+   298                        				
+   299 00:02C7: A2 12        				LDX	#18		
+                    			; Print 129-192 of char set.
+   300 00:02C9: A0 05        				LDY #5
+   301 00:02CB: 20 43 05     				JSR setXY
+   302 00:02CE: A9 80        				LDA #128
+   303 00:02D0: A2 00        				LDX #VGA_PRINT
+   304 00:02D2: 20 CF 04     l3				JSR writeToPropeller
+   305 00:02D5: 1A           				INC
+   306 00:02D6: C9 C0        				CMP #192
+   307 00:02D8: D0 F8        				BNE l3
+   308                        				
+   309 00:02DA: A2 12        				LDX	#18		
+                    			; Print 193-255 of char set.
+   310 00:02DC: A0 06        				LDY #6
+   311 00:02DE: 20 43 05     				JSR setXY
+   312 00:02E1: A9 C0        				LDA #192
+   313 00:02E3: A2 00        				LDX #VGA_PRINT
+   314 00:02E5: 20 CF 04     l4				JSR writeToPropeller
+   315 00:02E8: 1A           				INC
+   316 00:02E9: D0 FA        				BNE l4
+   317                        				
+   318                        
+   319 00:02EB: A2 04        				LDX	#4		
+                    			; Print String "64 Colors"
+   320 00:02ED: A0 15        				LDY #21
+   321 00:02EF: A9 xx        				LDA #<StringTXT1   	
+                    	; Load String Pointers.
+   322 00:02F1: 85 40        				STA StringLo
+  Mon Dec 14 2015 11:10                                                Page 8
+
+    "VGA VGA.asm"
+    "VGA"
+
+   323 00:02F3: A9 xx        				LDA #>StringTXT1
+   324 00:02F5: 85 41        				STA StringHi
+   325 00:02F7: 20 4F 05     				JSR printStringXY
+   326 00:02FA: A9 00        				LDA #0
+   327 00:02FC: A2 03        				LDX #VGA_ROW_COLOR
+   328 00:02FE: 20 CF 04     				JSR writeToPropeller
+   329                        				
+   330 00:0301: A2 04        				LDX	#4		
+                    			; Print String "64 Colors"
+   331 00:0303: A0 16        				LDY #22
+   332 00:0305: A9 xx        				LDA #<StringTXT2  	
+                    	; Load String Pointers.
+   333 00:0307: 85 40        				STA StringLo
+   334 00:0309: A9 xx        				LDA #>StringTXT2
+   335 00:030B: 85 41        				STA StringHi
+   336 00:030D: 20 4F 05     				JSR printStringXY
+   337 00:0310: A9 00        				LDA #0
+   338 00:0312: A2 03        				LDX #VGA_ROW_COLOR
+   339 00:0314: 20 CF 04     				JSR writeToPropeller
+   340                        				
+   341 00:0317: A2 04        				LDX	#4		
+                    			; Print String "64 Colors"
+   342 00:0319: A0 17        				LDY #23
+   343 00:031B: A9 xx        				LDA #<StringTXT3 	
+                    	; Load String Pointers.
+   344 00:031D: 85 40        				STA StringLo
+   345 00:031F: A9 xx        				LDA #>StringTXT3
+   346 00:0321: 85 41        				STA StringHi
+   347 00:0323: 20 4F 05     				JSR printStringXY
+   348 00:0326: A9 00        				LDA #0
+   349 00:0328: A2 03        				LDX #VGA_ROW_COLOR
+   350 00:032A: 20 CF 04     				JSR writeToPropeller
+   351                        				
+   352 00:032D: A2 04        				LDX	#4		
+                    			; Print String "64 Colors"
+   353 00:032F: A0 18        				LDY #24
+   354 00:0331: A9 xx        				LDA #<StringTXT4 	
+                    	; Load String Pointers.
+   355 00:0333: 85 40        				STA StringLo
+   356 00:0335: A9 xx        				LDA #>StringTXT4
+   357 00:0337: 85 41        				STA StringHi
+   358 00:0339: 20 4F 05     				JSR printStringXY
+   359 00:033C: A9 00        				LDA #0
+   360 00:033E: A2 03        				LDX #VGA_ROW_COLOR
+   361 00:0340: 20 CF 04     				JSR writeToPropeller
+   362                        				
+   363 00:0343: A2 04        				LDX	#4		
+                    			; Print String "64 Colors"
+   364 00:0345: A0 19        				LDY #25
+   365 00:0347: A9 xx        				LDA #<StringTXT5  	
+                    	; Load String Pointers.
+   366 00:0349: 85 40        				STA StringLo
+   367 00:034B: A9 xx        				LDA #>StringTXT5
+   368 00:034D: 85 41        				STA StringHi
+   369 00:034F: 20 4F 05     				JSR printStringXY
+  Mon Dec 14 2015 11:10                                                Page 9
+
+    "VGA VGA.asm"
+    "VGA"
+
+   370 00:0352: A9 00        				LDA #0
+   371 00:0354: A2 03        				LDX #VGA_ROW_COLOR
+   372 00:0356: 20 CF 04     				JSR writeToPropeller
+   373                        				
+   374 00:0359: A2 04        				LDX	#4		
+                    			; Print String "64 Colors"
+   375 00:035B: A0 1A        				LDY #26
+   376 00:035D: A9 xx        				LDA #<StringTXT6 	
+                    	; Load String Pointers.
+   377 00:035F: 85 40        				STA StringLo
+   378 00:0361: A9 xx        				LDA #>StringTXT6
+   379 00:0363: 85 41        				STA StringHi
+   380 00:0365: 20 4F 05     				JSR printStringXY
+   381 00:0368: A9 00        				LDA #0
+   382 00:036A: A2 03        				LDX #VGA_ROW_COLOR
+   383 00:036C: 20 CF 04     				JSR writeToPropeller
+   384                        				
+   385 00:036F: A2 04        				LDX	#4		
+                    			; Print String "64 Colors"
+   386 00:0371: A0 1B        				LDY #27
+   387 00:0373: A9 xx        				LDA #<StringTXT7	
+                    	; Load String Pointers.
+   388 00:0375: 85 40        				STA StringLo
+   389 00:0377: A9 xx        				LDA #>StringTXT7
+   390 00:0379: 85 41        				STA StringHi
+   391 00:037B: 20 4F 05     				JSR printStringXY
+   392 00:037E: A9 00        				LDA #0
+   393 00:0380: A2 03        				LDX #VGA_ROW_COLOR
+   394 00:0382: 20 CF 04     				JSR writeToPropeller
+   395                        				
+   396 00:0385: A2 04        				LDX	#4		
+                    			; Print String "64 Colors"
+   397 00:0387: A0 1C        				LDY #28
+   398 00:0389: A9 xx        				LDA #<StringTXT8	
+                    	; Load String Pointers.
+   399 00:038B: 85 40        				STA StringLo
+   400 00:038D: A9 xx        				LDA #>StringTXT8
+   401 00:038F: 85 41        				STA StringHi
+   402 00:0391: 20 4F 05     				JSR printStringXY
+   403 00:0394: A9 00        				LDA #0
+   404 00:0396: A2 03        				LDX #VGA_ROW_COLOR
+   405 00:0398: 20 CF 04     				JSR writeToPropeller
+   406                        				
+   407 00:039B: 64 47        				STZ Current_Color	
+                    	; Zero color rotation
+   408                        				
+   409                        mainLoop			  
+   410                        			  
+   411 00:039D: A2 22        				LDX	#34		
+                    			; Location for tracker data
+   412 00:039F: A0 01        				LDY #1
+   413 00:03A1: 20 43 05     				JSR setXY
+   414                        				
+   415                        				; Channel 1
+   416 00:03A4: A0 00        				LDY #0
+  Mon Dec 14 2015 11:10                                                Page 10
+
+    "VGA VGA.asm"
+    "VGA"
+
+   417 00:03A6: B1 42        				LDA (MusicLo),Y
+   418 00:03A8: 85 60        				STA Temp
+   419 00:03AA: 85 44        				STA NoteLo
+   420 00:03AC: C8           				INY
+   421 00:03AD: B1 42        				LDA (MusicLo),Y
+   422 00:03AF: 85 45        				STA NoteHi
+   423 00:03B1: C8           				INY
+   424 00:03B2: 20 2A 05     				JSR printHex		
+                    	; Print values for Channel 1
+   425 00:03B5: A5 60        				LDA Temp
+   426 00:03B7: 20 2A 05     				JSR printHex
+   427 00:03BA: A9 20        				LDA #$20		
+                    		; Couple of spaces..
+   428 00:03BC: A2 00        				LDX #VGA_PRINT
+   429 00:03BE: 20 CF 04     				JSR writeToPropeller
+   430 00:03C1: 20 CF 04     				JSR writeToPropeller
+   431                        				
+   432 00:03C4: A5 44        				LDA NoteLo		
+                    		; Get Note
+   433 00:03C6: F0 15        				BEQ doNote1_off		
+                    	; Note off ?
+   434 00:03C8: A2 20        				LDX #SID_FR1LO		
+                    	; Write low Frequency to SID
+   435 00:03CA: 20 CF 04     				JSR writeToPropeller
+   436                        				
+   437 00:03CD: A5 45        				LDA NoteHi
+   438 00:03CF: A2 21        				LDX #SID_FR1HI		
+                    	; Write low Frequency to SID
+   439 00:03D1: 20 CF 04     				JSR writeToPropeller
+   440                        				
+   441 00:03D4: A9 41        				LDA #NOTE1_ON		
+                    	; Play note
+   442 00:03D6: A2 24        				LDX #SID_CR1
+   443 00:03D8: 20 CF 04     				JSR writeToPropeller
+   444 00:03DB: 80 07        				BRA doChannel2
+   445                        				
+   446 00:03DD: A9 40        doNote1_off		LDA #NOTE1_OFF		
+                    	; Flag note off
+   447 00:03DF: A2 24        				LDX #SID_CR1
+   448 00:03E1: 20 CF 04     				JSR writeToPropeller
+   449                        				
+   450                        				
+   451                        doChannel2		
+   452                        				; Channel 2
+   453 00:03E4: B1 42        				LDA (MusicLo),Y
+   454 00:03E6: 85 60        				STA Temp
+   455 00:03E8: 85 44        				STA NoteLo
+   456 00:03EA: C8           				INY
+   457 00:03EB: B1 42        				LDA (MusicLo),Y
+   458 00:03ED: 85 45        				STA NoteHi
+   459 00:03EF: C8           				INY
+   460 00:03F0: 20 2A 05     				JSR printHex		
+                    	; Print values for Channel 2
+   461 00:03F3: A5 60        				LDA Temp
+   462 00:03F5: 20 2A 05     				JSR printHex
+  Mon Dec 14 2015 11:10                                                Page 11
+
+    "VGA VGA.asm"
+    "VGA"
+
+   463 00:03F8: A9 20        				LDA #$20		
+                    		; Couple of spaces..
+   464 00:03FA: A2 00        				LDX #VGA_PRINT
+   465 00:03FC: 20 CF 04     				JSR writeToPropeller
+   466 00:03FF: 20 CF 04     				JSR writeToPropeller
+   467                        
+   468 00:0402: A5 44        				LDA NoteLo
+   469 00:0404: F0 15        				BEQ doNote2_off
+   470 00:0406: A2 27        				LDX #SID_FR2LO
+   471 00:0408: 20 CF 04     				JSR writeToPropeller
+   472                        				
+   473 00:040B: A5 45        				LDA NoteHi
+   474 00:040D: A2 28        				LDX #SID_FR2HI
+   475 00:040F: 20 CF 04     				JSR writeToPropeller
+   476                        				
+   477 00:0412: A9 81        				LDA #NOTE2_ON
+   478 00:0414: A2 2B        				LDX #SID_CR2
+   479 00:0416: 20 CF 04     				JSR writeToPropeller
+   480 00:0419: 80 07        				BRA doChannel3
+   481                        				
+   482 00:041B: A9 80        doNote2_off		LDA #NOTE2_OFF
+   483 00:041D: A2 2B        				LDX #SID_CR2
+   484 00:041F: 20 CF 04     				JSR writeToPropeller	
+                    			
+   485                        				
+   486                        doChannel3
+   487                        				; Channel 3
+   488 00:0422: B1 42        				LDA (MusicLo),Y
+   489 00:0424: 85 60        				STA Temp
+   490 00:0426: 85 44        				STA NoteLo
+   491 00:0428: C8           				INY
+   492 00:0429: B1 42        				LDA (MusicLo),Y
+   493 00:042B: 85 45        				STA NoteHi
+   494 00:042D: C8           				INY
+   495 00:042E: 20 2A 05     				JSR printHex		
+                    	; Print values for Channel 3
+   496 00:0431: A5 60        				LDA Temp
+   497 00:0433: 20 2A 05     				JSR printHex
+   498 00:0436: A9 20        				LDA #$20		
+                    		; Couple of spaces..
+   499 00:0438: A2 00        				LDX #VGA_PRINT
+   500 00:043A: 20 CF 04     				JSR writeToPropeller
+   501 00:043D: 20 CF 04     				JSR writeToPropeller
+   502                        				
+   503 00:0440: A5 44        				LDA NoteLo
+   504 00:0442: F0 15        				BEQ doNote3_off
+   505 00:0444: A2 2E        				LDX #SID_FR3LO
+   506 00:0446: 20 CF 04     				JSR writeToPropeller
+   507                        				
+   508 00:0449: A5 45        				LDA NoteHi
+   509 00:044B: A2 2F        				LDX #SID_FR3HI
+   510 00:044D: 20 CF 04     				JSR writeToPropeller
+   511                        				
+   512 00:0450: A9 21        				LDA #NOTE3_ON
+   513 00:0452: A2 32        				LDX #SID_CR3
+  Mon Dec 14 2015 11:10                                                Page 12
+
+    "VGA VGA.asm"
+    "VGA"
+
+   514 00:0454: 20 CF 04     				JSR writeToPropeller
+   515 00:0457: 80 07        				BRA doCutOff
+   516                        				
+   517 00:0459: A9 20        doNote3_off		LDA #NOTE3_OFF
+   518 00:045B: A2 32        				LDX #SID_CR3
+   519 00:045D: 20 CF 04     				JSR writeToPropeller	
+                    				
+   520                        
+   521                        doCutOff
+   522                        				; Cutoff
+   523 00:0460: B1 42        				LDA (MusicLo),Y
+   524 00:0462: 85 60        				STA Temp
+   525 00:0464: 85 44        				STA NoteLo
+   526 00:0466: C8           				INY
+   527 00:0467: B1 42        				LDA (MusicLo),Y
+   528 00:0469: 85 45        				STA NoteHi
+   529 00:046B: C8           				INY
+   530 00:046C: 20 2A 05     				JSR printHex		
+                    	; Print values for Cutoff
+   531 00:046F: A5 60        				LDA Temp
+   532 00:0471: 20 2A 05     				JSR printHex
+   533                        				
+   534 00:0474: A5 44        				LDA NoteLo		
+                    		; Low value anded by 7 to mask bits
+   535 00:0476: 29 07        				AND #7
+   536 00:0478: A6 35        				LDX SID_FCLO		
+                    	; Low cutoff frequency. It's only three bits...
+   537 00:047A: 20 CF 04     				JSR writeToPropeller
+   538                        
+   539 00:047D: 66 45        				ROR NoteHi		
+                    		; Shift three times to get rid of Low bits.
+   540 00:047F: 66 44        				ROR NoteLo		
+                    		; We now have a value between 0 and 255.
+   541 00:0481: 66 45        				ROR NoteHi
+   542 00:0483: 66 44        				ROR NoteLo
+   543 00:0485: 66 45        				ROR NoteHi
+   544 00:0487: 66 44        				ROR NoteLo
+   545                        
+   546 00:0489: A5 44        				LDA NoteLo		
+                    		; High cutoff frequency.
+   547 00:048B: A6 35        				LDX SID_FCLO
+   548 00:048D: 20 CF 04     				JSR writeToPropeller
+   549                        				
+   550                        setNextNotes				
+   551 00:0490: A5 42        				LDA MusicLo		
+                    		; Add 8 bytes to point to next note.
+   552 00:0492: 18           				CLC
+   553 00:0493: 69 08        				ADC #8
+   554 00:0495: 85 42        				STA MusicLo
+   555 00:0497: A5 43        				LDA MusicHi
+   556 00:0499: 69 00        				ADC #0
+   557 00:049B: 85 43        				STA MusicHi
+   558                        				
+   559 00:049D: B2 42        				LDA (MusicLo)		
+                    	; Do we need to reset ?
+  Mon Dec 14 2015 11:10                                                Page 13
+
+    "VGA VGA.asm"
+    "VGA"
+
+   560 00:049F: 1A           				INC			
+                    			; If current note is 255, reset. Load cu
+                    rrent note, increase it and test for zero.
+   561 00:04A0: D0 08        				BNE noMusicReset
+   562 00:04A2: A9 xx        				LDA #<MusicData     	
+                    ; Reset Music Pointers.
+   563 00:04A4: 85 42        				STA MusicLo
+   564 00:04A6: A9 xx        				LDA #>MusicData
+   565 00:04A8: 85 43        				STA MusicHi
+   566                        
+   567                        noMusicReset				
+   568                        
+   569 00:04AA: A5 47        				LDA Current_Color	
+                    	; Get current color
+   570 00:04AC: 85 46        				STA Temp_Color		
+                    	; Store in Temp
+   571 00:04AE: E6 47        				INC Current_Color	
+                    	; Next color in rotation.
+   572 00:04B0: A0 0A        				LDY #10			
+                    		; Start on row 10
+   573                        colorLoop
+   574 00:04B2: 98           				TYA			
+                    			; Set Row
+   575 00:04B3: A2 02        				LDX #VGA_ROW
+   576 00:04B5: 20 CF 04     				JSR writeToPropeller
+   577 00:04B8: A5 46        				LDA Temp_Color		
+                    	; Get temp color
+   578 00:04BA: 0A           				ASL			
+                    			; Shift up two bits, lower 2 bits not us
+                    ed in color.
+   579 00:04BB: 0A           				ASL
+   580 00:04BC: A2 04        				LDX #VGA_ROW_BACK	
+                    	; Set background color.
+   581 00:04BE: 20 CF 04     				JSR writeToPropeller
+   582 00:04C1: E6 46        				INC Temp_Color		
+                    	; Rotate.
+   583 00:04C3: C8           				INY			
+                    			; Next row.
+   584 00:04C4: 98           				TYA
+   585 00:04C5: C9 32        				CMP #50			
+                    		; Done ?
+   586 00:04C7: D0 E9        				BNE colorLoop
+   587                        				
+   588 00:04C9: 20 F1 04     				JSR delay		
+                    		; Wait for it...
+   589 00:04CC: 4C 9D 03     				JMP mainLoop		
+                    	; Repeat forever....
+   590                        
+   591                        ;-------------------------------------------------
+                    ------------------------
+   592                        ; writeToPropeller, A is data, X is Address
+   593                        ;-------------------------------------------------
+                    ------------------------
+   594                        
+   595                        writeToPropeller
+  Mon Dec 14 2015 11:10                                                Page 14
+
+    "VGA VGA.asm"
+    "VGA"
+
+   596 00:04CF: 48           				PHA			
+                    	; Save A
+   597 00:04D0: AD A2 7F     tstBusy			LDA	PIA_ORB		
+                    ; Read Output.
+   598 00:04D3: 29 80        				AND	#$80		
+                    ; Is High Bit set ?
+   599 00:04D5: D0 F9        				BNE	tstBusy		
+                    ; Wait for Propeller to finish.
+   600 00:04D7: 68           				PLA			
+                    	; Restore A
+   601 00:04D8: 48           				PHA			
+                    	; Save it again
+   602 00:04D9: 8D A0 7F     				STA	PIA_ORA
+   603 00:04DC: 8A           				TXA
+   604 00:04DD: 09 40        				ORA #$40		
+                    ; Set Write Flag.
+   605 00:04DF: 8D A2 7F     				STA PIA_ORB		
+                    ; Send data.
+   606 00:04E2: AD A2 7F     tstBusy2		LDA	PIA_ORB		; Read O
+                    utput.
+   607 00:04E5: 29 80        				AND	#$80		
+                    ; Is High Bit set ?
+   608 00:04E7: F0 F9        				BEQ	tstBusy2	
+                    ; Wait for Propeller to be busy.
+   609 00:04E9: 8A           				TXA
+   610 00:04EA: 29 3F        				AND #$3F		
+                    ; Clear Write Flag.
+   611 00:04EC: 8D A2 7F     				STA PIA_ORB		
+                    ; Flag it.
+   612                        				
+   613 00:04EF: 68           				PLA			
+                    	; Restore A
+   614 00:04F0: 60           				RTS
+   615                        				
+   616                        ;-------------------------------------------------
+                    ------------------------
+   617                        ; delay: delay to see changes on screen.
+   618                        ;-------------------------------------------------
+                    ------------------------
+   619                        
+   620 00:04F1: A9 01        delay			LDA #$01
+   621 00:04F3: A0 00        				LDY #$00            ; Lo
+                    op 16*256*256 times...
+   622 00:04F5: A2 00        				LDX #$00
+   623 00:04F7: CA           dloop1			DEX
+   624 00:04F8: D0 FD        				BNE dloop1
+   625 00:04FA: 88           				DEY
+   626 00:04FB: D0 FA        				BNE dloop1
+   627 00:04FD: 3A           				DEC
+   628 00:04FE: D0 F7        				BNE dloop1
+   629 00:0500: 60           				RTS
+   630                        
+   631                        ;-------------------------------------------------
+                    ------------------------
+   632                        ; delay: delay to see changes on screen.
+  Mon Dec 14 2015 11:10                                                Page 15
+
+    "VGA VGA.asm"
+    "VGA"
+
+   633                        ;-------------------------------------------------
+                    ------------------------
+   634                        
+   635 00:0501: A9 01        delay2			LDA #$01
+   636 00:0503: A0 40        				LDY #$40            ; Lo
+                    op 16*256*256 times...
+   637 00:0505: A2 00        				LDX #$00
+   638 00:0507: CA           dloop2			DEX
+   639 00:0508: D0 FD        				BNE dloop2
+   640 00:050A: 88           				DEY
+   641 00:050B: D0 FA        				BNE dloop2
+   642 00:050D: 3A           				DEC
+   643 00:050E: D0 F7        				BNE dloop2
+   644 00:0510: 60           				RTS			
+                    	
+   645                        				
+   646                        ;-------------------------------------------------
+                    ------------------------
+   647                        ; calc_rgb: A = R, X = G, Y = B values between 0 a
+                    nd 3
+   648                        ; Resulting byte is RRGGBB00 each two bit values.
+   649                        ;-------------------------------------------------
+                    ------------------------
+   650                        
+   651 00:0511: 2A           calc_rgb		ROL				
+                    ; Shift Red 6 bits
+   652 00:0512: 2A           				ROL
+   653 00:0513: 2A           				ROL
+   654 00:0514: 2A           				ROL
+   655 00:0515: 2A           				ROL
+   656 00:0516: 2A           				ROL
+   657 00:0517: 85 60        				STA Temp		
+                    ; Store in Temp
+   658 00:0519: 8A           				TXA			
+                    	; X to A and shift Green 4 bits
+   659 00:051A: 2A           				ROL
+   660 00:051B: 2A           				ROL
+   661 00:051C: 2A           				ROL
+   662 00:051D: 2A           				ROL
+   663 00:051E: 18           				CLC
+   664 00:051F: 65 60        				ADC Temp		
+                    ; Add with Temp
+   665 00:0521: 85 60        				STA Temp		
+                    ; Store in Temp
+   666 00:0523: 98           				TYA			
+                    	; Y to A and shift Blue 2 bits
+   667 00:0524: 2A           				ROL
+   668 00:0525: 2A           				ROL
+   669 00:0526: 18           				CLC
+   670 00:0527: 65 60        				ADC Temp		
+                    ; Add with Temp
+   671 00:0529: 60           				RTS
+   672                        
+   673                        ;-------------------------------------------------
+                    ------------------------
+  Mon Dec 14 2015 11:10                                                Page 16
+
+    "VGA VGA.asm"
+    "VGA"
+
+   674                        ; printHex: Print a HEX value, the Woz way...
+   675                        ;-------------------------------------------------
+                    ------------------------
+   676                        
+   677                        printHex
+   678 00:052A: 48           				PHA			
+                    	; Save A for LSD
+   679 00:052B: 4A           				LSR
+   680 00:052C: 4A           				LSR
+   681 00:052D: 4A           				LSR			
+                    	; MSD to LSD position
+   682 00:052E: 4A           				LSR
+   683 00:052F: 20 33 05     				JSR PRHEX		
+                    ; Output hex digit 
+   684 00:0532: 68           				PLA			
+                    	; Restore A
+   685 00:0533: 29 0F        PRHEX			AND #%00001111	; Mask L
+                    SD for hex print			  
+   686 00:0535: 09 30        				ORA #"0"		
+                    ; Add "0"
+   687 00:0537: C9 3A        				CMP #"9"+1		
+                    ; Is it a decimal digit ?
+   688 00:0539: 90 02        				BCC ECHO		
+                    ; Yes Output it
+   689 00:053B: 69 06        				ADC #6			
+                    ; Add offset for letter A-F
+   690 00:053D: A2 00        ECHO			LDX #VGA_PRINT	; Print
+   691 00:053F: 20 CF 04     				JSR writeToPropeller	
+                    ; Print it...
+   692 00:0542: 60           				RTS
+   693                        
+   694                        
+   695                        ;-------------------------------------------------
+                    ------------------------
+   696                        ; setXY: Set XY from X and Y register.
+   697                        ;-------------------------------------------------
+                    ------------------------
+   698                        
+   699                        setXY
+   700 00:0543: 8A           				TXA
+   701 00:0544: A2 01        				LDX #VGA_COL
+   702 00:0546: 20 CF 04     				JSR writeToPropeller
+   703 00:0549: 98           				TYA
+   704 00:054A: A2 02        				LDX #VGA_ROW
+   705 00:054C: 4C CF 04     				JMP writeToPropeller
+   706                        			  
+   707                        ;-------------------------------------------------
+                    ------------------------
+   708                        ; printStringXY: Print a string preloaded in Strin
+                    gLo at XY from X and Y register.
+   709                        ;-------------------------------------------------
+                    ------------------------
+   710                        
+   711                        printStringXY
+   712 00:054F: 8A           				TXA
+  Mon Dec 14 2015 11:10                                                Page 17
+
+    "VGA VGA.asm"
+    "VGA"
+
+   713 00:0550: A2 01        				LDX #VGA_COL
+   714 00:0552: 20 CF 04     				JSR writeToPropeller
+   715 00:0555: 98           				TYA
+   716 00:0556: A2 02        				LDX #VGA_ROW
+   717 00:0558: 20 CF 04     				JSR writeToPropeller
+   718                        
+   719                        ;-------------------------------------------------
+                    ------------------------
+   720                        ; printString: Print a string preloaded in StringL
+                    o
+   721                        ;-------------------------------------------------
+                    ------------------------
+   722                        
+   723                        printString
+   724 00:055B: A0 00        				LDY #0
+   725 00:055D: B1 40        nextChar		LDA (StringLo),Y	; Get ch
+                    aracter
+   726 00:055F: F0 08        				BEQ done_Printing	
+                    ; Zero, we done...
+   727 00:0561: A2 00        				LDX #VGA_PRINT		
+                    ; Print
+   728 00:0563: 20 CF 04     				JSR writeToPropeller
+   729 00:0566: C8           				INY			
+                    		; Next, cannot print more than 254 bytes or we w
+                    rap around in an infinite loop.
+   730 00:0567: 80 F4        				BRA nextChar		
+                    ; Continue
+   731 00:0569: 60           done_Printing	RTS
+   732                        
+   733                        ;-------------------------------------------------
+                    ------------------------
+   734                        ; FUNCTION NAME	: Event Hander re-vectors
+   735                        ;-------------------------------------------------
+                    ------------------------
+   736                        IRQHandler:
+   737 00:056A: 48           				PHA
+   738 00:056B: 68           				PLA
+   739 00:056C: 40           				RTI
+   740                        
+   741                        badVec			; $FFE0 - IRQRVD2(134)
+   742 00:056D: 08           				PHP
+   743 00:056E: 48           				PHA
+   744 00:056F: A9 FF        				LDA #$FF
+   745                        				;clear Irq
+   746 00:0571: 68           				PLA
+   747 00:0572: 28           				PLP
+   748 00:0573: 40           				RTI
+   749                        
+   750                        	DATA
+   751                        
+   752                        String1
+   753 00:0000: 57 36 35 43  				BYTE	"W65CSXB VGA and
+                     SID system...", $00 ; 1
+       00:0004: 53 58 42 20 
+       00:0008: 56 47 41 20 
+  Mon Dec 14 2015 11:10                                                Page 18
+
+    "VGA VGA.asm"
+    "VGA"
+
+       00:000C: 61 6E 64 20 
+       00:0010: 53 49 44 20 
+       00:0014: 73 79 73 74 
+       00:0018: 65 6D 2E 2E 
+       00:001C: 2E 00 
+   754                        
+   755 00:001E: 20 2E 64 38  StringTXT1		BYTE	" .d8888b.      d8888   
+                         .d8888b.   .d88888b.  888      .d88888b.  8888888b.   .
+                    d8888b.  ", 0
+       00:0022: 38 38 38 62 
+       00:0026: 2E 20 20 20 
+       00:002A: 20 20 20 64 
+       00:002E: 38 38 38 38 
+       00:0032: 20 20 20 20 
+       00:0036: 20 20 20 20 
+       00:003A: 2E 64 38 38 
+       00:003E: 38 38 62 2E 
+       00:0042: 20 20 20 2E 
+       00:0046: 64 38 38 38 
+       00:004A: 38 38 62 2E 
+       00:004E: 20 20 38 38 
+       00:0052: 38 20 20 20 
+       00:0056: 20 20 20 2E 
+       00:005A: 64 38 38 38 
+       00:005E: 38 38 62 2E 
+       00:0062: 20 20 38 38 
+       00:0066: 38 38 38 38 
+       00:006A: 38 62 2E 20 
+       00:006E: 20 20 2E 64 
+       00:0072: 38 38 38 38 
+       00:0076: 62 2E 20 20 
+       00:007A: 00 
+   756 00:007B: 64 38 38 50  StringTXT2		BYTE	"d88P  Y88b    d8P888   
+                        d88P  Y88b d88P' 'Y88b 888     d88P' 'Y88b 888   Y88b d8
+                    8P  Y88b ", 0
+       00:007F: 20 20 59 38 
+       00:0083: 38 62 20 20 
+       00:0087: 20 20 64 38 
+       00:008B: 50 38 38 38 
+       00:008F: 20 20 20 20 
+       00:0093: 20 20 20 64 
+       00:0097: 38 38 50 20 
+       00:009B: 20 59 38 38 
+       00:009F: 62 20 64 38 
+       00:00A3: 38 50 27 20 
+       00:00A7: 27 59 38 38 
+       00:00AB: 62 20 38 38 
+       00:00AF: 38 20 20 20 
+       00:00B3: 20 20 64 38 
+       00:00B7: 38 50 27 20 
+       00:00BB: 27 59 38 38 
+       00:00BF: 62 20 38 38 
+       00:00C3: 38 20 20 20 
+       00:00C7: 59 38 38 62 
+       00:00CB: 20 64 38 38 
+  Mon Dec 14 2015 11:10                                                Page 19
+
+    "VGA VGA.asm"
+    "VGA"
+
+       00:00CF: 50 20 20 59 
+       00:00D3: 38 38 62 20 
+       00:00D7: 00 
+   757 00:00D8: 38 38 38 20  StringTXT3		BYTE	"888          d8P 888   
+                        888    888 888     888 888     888     888 888    888 Y8
+                    8b.      ", 0
+       00:00DC: 20 20 20 20 
+       00:00E0: 20 20 20 20 
+       00:00E4: 20 64 38 50 
+       00:00E8: 20 38 38 38 
+       00:00EC: 20 20 20 20 
+       00:00F0: 20 20 20 38 
+       00:00F4: 38 38 20 20 
+       00:00F8: 20 20 38 38 
+       00:00FC: 38 20 38 38 
+       00:0100: 38 20 20 20 
+       00:0104: 20 20 38 38 
+       00:0108: 38 20 38 38 
+       00:010C: 38 20 20 20 
+       00:0110: 20 20 38 38 
+       00:0114: 38 20 20 20 
+       00:0118: 20 20 38 38 
+       00:011C: 38 20 38 38 
+       00:0120: 38 20 20 20 
+       00:0124: 20 38 38 38 
+       00:0128: 20 59 38 38 
+       00:012C: 62 2E 20 20 
+       00:0130: 20 20 20 20 
+       00:0134: 00 
+   758 00:0135: 38 38 38 64  StringTXT4		BYTE	"888d888b.   d8P  888   
+                        888        888     888 888     888     888 888   d88P  '
+                    Y888b.   ", 0
+       00:0139: 38 38 38 62 
+       00:013D: 2E 20 20 20 
+       00:0141: 64 38 50 20 
+       00:0145: 20 38 38 38 
+       00:0149: 20 20 20 20 
+       00:014D: 20 20 20 38 
+       00:0151: 38 38 20 20 
+       00:0155: 20 20 20 20 
+       00:0159: 20 20 38 38 
+       00:015D: 38 20 20 20 
+       00:0161: 20 20 38 38 
+       00:0165: 38 20 38 38 
+       00:0169: 38 20 20 20 
+       00:016D: 20 20 38 38 
+       00:0171: 38 20 20 20 
+       00:0175: 20 20 38 38 
+       00:0179: 38 20 38 38 
+       00:017D: 38 20 20 20 
+       00:0181: 64 38 38 50 
+       00:0185: 20 20 27 59 
+       00:0189: 38 38 38 62 
+       00:018D: 2E 20 20 20 
+       00:0191: 00 
+  Mon Dec 14 2015 11:10                                                Page 20
+
+    "VGA VGA.asm"
+    "VGA"
+
+   759 00:0192: 38 38 38 50  StringTXT5		BYTE	"888P 'Y88b d88   888   
+                        888        888     888 888     888     888 8888888P'    
+                      'Y88b. ", 0
+       00:0196: 20 27 59 38 
+       00:019A: 38 62 20 64 
+       00:019E: 38 38 20 20 
+       00:01A2: 20 38 38 38 
+       00:01A6: 20 20 20 20 
+       00:01AA: 20 20 20 38 
+       00:01AE: 38 38 20 20 
+       00:01B2: 20 20 20 20 
+       00:01B6: 20 20 38 38 
+       00:01BA: 38 20 20 20 
+       00:01BE: 20 20 38 38 
+       00:01C2: 38 20 38 38 
+       00:01C6: 38 20 20 20 
+       00:01CA: 20 20 38 38 
+       00:01CE: 38 20 20 20 
+       00:01D2: 20 20 38 38 
+       00:01D6: 38 20 38 38 
+       00:01DA: 38 38 38 38 
+       00:01DE: 38 50 27 20 
+       00:01E2: 20 20 20 20 
+       00:01E6: 20 27 59 38 
+       00:01EA: 38 62 2E 20 
+       00:01EE: 00 
+   760 00:01EF: 38 38 38 20  StringTXT6		BYTE	"888    888 8888888888  
+                        888    888 888     888 888     888     888 888 T88b     
+                        '888 ", 0
+       00:01F3: 20 20 20 38 
+       00:01F7: 38 38 20 38 
+       00:01FB: 38 38 38 38 
+       00:01FF: 38 38 38 38 
+       00:0203: 38 20 20 20 
+       00:0207: 20 20 20 38 
+       00:020B: 38 38 20 20 
+       00:020F: 20 20 38 38 
+       00:0213: 38 20 38 38 
+       00:0217: 38 20 20 20 
+       00:021B: 20 20 38 38 
+       00:021F: 38 20 38 38 
+       00:0223: 38 20 20 20 
+       00:0227: 20 20 38 38 
+       00:022B: 38 20 20 20 
+       00:022F: 20 20 38 38 
+       00:0233: 38 20 38 38 
+       00:0237: 38 20 54 38 
+       00:023B: 38 62 20 20 
+       00:023F: 20 20 20 20 
+       00:0243: 20 20 20 27 
+       00:0247: 38 38 38 20 
+       00:024B: 00 
+   761 00:024C: 59 38 38 62  StringTXT7		BYTE	"Y88b  d88P       888   
+                        Y88b  d88P Y88b. .d88P 888     Y88b. .d88P 888  T88b  Y8
+                    8b  d88P ", 0
+  Mon Dec 14 2015 11:10                                                Page 21
+
+    "VGA VGA.asm"
+    "VGA"
+
+       00:0250: 20 20 64 38 
+       00:0254: 38 50 20 20 
+       00:0258: 20 20 20 20 
+       00:025C: 20 38 38 38 
+       00:0260: 20 20 20 20 
+       00:0264: 20 20 20 59 
+       00:0268: 38 38 62 20 
+       00:026C: 20 64 38 38 
+       00:0270: 50 20 59 38 
+       00:0274: 38 62 2E 20 
+       00:0278: 2E 64 38 38 
+       00:027C: 50 20 38 38 
+       00:0280: 38 20 20 20 
+       00:0284: 20 20 59 38 
+       00:0288: 38 62 2E 20 
+       00:028C: 2E 64 38 38 
+       00:0290: 50 20 38 38 
+       00:0294: 38 20 20 54 
+       00:0298: 38 38 62 20 
+       00:029C: 20 59 38 38 
+       00:02A0: 62 20 20 64 
+       00:02A4: 38 38 50 20 
+       00:02A8: 00 
+   762 00:02A9: 20 27 59 38  StringTXT8		BYTE	" 'Y8888P'        888   
+                         'Y8888P'   'Y88888P'  88888888 'Y88888P'  888   T88b  '
+                    Y8888P'  ", 0
+       00:02AD: 38 38 38 50 
+       00:02B1: 27 20 20 20 
+       00:02B5: 20 20 20 20 
+       00:02B9: 20 38 38 38 
+       00:02BD: 20 20 20 20 
+       00:02C1: 20 20 20 20 
+       00:02C5: 27 59 38 38 
+       00:02C9: 38 38 50 27 
+       00:02CD: 20 20 20 27 
+       00:02D1: 59 38 38 38 
+       00:02D5: 38 38 50 27 
+       00:02D9: 20 20 38 38 
+       00:02DD: 38 38 38 38 
+       00:02E1: 38 38 20 27 
+       00:02E5: 59 38 38 38 
+       00:02E9: 38 38 50 27 
+       00:02ED: 20 20 38 38 
+       00:02F1: 38 20 20 20 
+       00:02F5: 54 38 38 62 
+       00:02F9: 20 20 27 59 
+       00:02FD: 38 38 38 38 
+       00:0301: 50 27 20 20 
+       00:0305: 00 
+   763                                                                          
+                                                              
+   764                        MusicData
+   765 00:0306: 7A 04 00 00  				WORD 1146,0,0,0
+       00:030A: 00 00 00 00 
+   766 00:030E: 7A 04 00 00  				WORD 1146,0,0,8
+  Mon Dec 14 2015 11:10                                                Page 22
+
+    "VGA VGA.asm"
+    "VGA"
+
+       00:0312: 00 00 08 00 
+   767 00:0316: 7A 04 00 00  				WORD 1146,0,0,16
+       00:031A: 00 00 10 00 
+   768 00:031E: 00 00 00 00  				WORD 0,0,0,24
+       00:0322: 00 00 18 00 
+   769 00:0326: 7A 04 00 00  				WORD 1146,0,0,32
+       00:032A: 00 00 20 00 
+   770 00:032E: 00 00 00 00  				WORD 0,0,0,40
+       00:0332: 00 00 28 00 
+   771 00:0336: 00 00 00 00  				WORD 0,0,0,48
+       00:033A: 00 00 30 00 
+   772 00:033E: 00 00 00 00  				WORD 0,0,0,56
+       00:0342: 00 00 38 00 
+   773 00:0346: F5 08 00 00  				WORD 2293,0,0,64
+       00:034A: 00 00 40 00 
+   774 00:034E: 00 00 00 00  				WORD 0,0,0,72
+       00:0352: 00 00 48 00 
+   775 00:0356: 00 00 00 00  				WORD 0,0,0,80
+       00:035A: 00 00 50 00 
+   776 00:035E: 00 00 00 00  				WORD 0,0,0,88
+       00:0362: 00 00 58 00 
+   777 00:0366: 7A 04 00 00  				WORD 1146,0,0,96
+       00:036A: 00 00 60 00 
+   778 00:036E: 7A 04 00 00  				WORD 1146,0,0,104
+       00:0372: 00 00 68 00 
+   779 00:0376: 00 00 00 00  				WORD 0,0,0,112
+       00:037A: 00 00 70 00 
+   780 00:037E: 00 00 00 00  				WORD 0,0,0,120
+       00:0382: 00 00 78 00 
+   781 00:0386: 7A 04 00 00  				WORD 1146,0,0,128
+       00:038A: 00 00 80 00 
+   782 00:038E: 00 00 00 00  				WORD 0,0,0,136
+       00:0392: 00 00 88 00 
+   783 00:0396: 00 00 00 00  				WORD 0,0,0,144
+       00:039A: 00 00 90 00 
+   784 00:039E: 00 00 00 00  				WORD 0,0,0,152
+       00:03A2: 00 00 98 00 
+   785 00:03A6: F5 08 00 00  				WORD 2293,0,0,160
+       00:03AA: 00 00 A0 00 
+   786 00:03AE: 00 00 00 00  				WORD 0,0,0,168
+       00:03B2: 00 00 A8 00 
+   787 00:03B6: 00 00 00 00  				WORD 0,0,0,176
+       00:03BA: 00 00 B0 00 
+   788 00:03BE: 00 00 00 00  				WORD 0,0,0,184
+       00:03C2: 00 00 B8 00 
+   789 00:03C6: 7A 04 00 00  				WORD 1146,0,0,192
+       00:03CA: 00 00 C0 00 
+   790 00:03CE: 7A 04 00 00  				WORD 1146,0,0,200
+       00:03D2: 00 00 C8 00 
+   791 00:03D6: 00 00 00 00  				WORD 0,0,0,208
+       00:03DA: 00 00 D0 00 
+   792 00:03DE: 00 00 00 00  				WORD 0,0,0,216
+       00:03E2: 00 00 D8 00 
+   793 00:03E6: F5 08 00 00  				WORD 2293,0,0,224
+       00:03EA: 00 00 E0 00 
+  Mon Dec 14 2015 11:10                                                Page 23
+
+    "VGA VGA.asm"
+    "VGA"
+
+   794 00:03EE: 00 00 00 00  				WORD 0,0,0,232
+       00:03F2: 00 00 E8 00 
+   795 00:03F6: F5 08 00 00  				WORD 2293,0,0,240
+       00:03FA: 00 00 F0 00 
+   796 00:03FE: 00 00 00 00  				WORD 0,0,0,248
+       00:0402: 00 00 F8 00 
+   797 00:0406: FB 05 00 00  				WORD 1531,0,0,256
+       00:040A: 00 00 00 01 
+   798 00:040E: FB 05 00 00  				WORD 1531,0,0,264
+       00:0412: 00 00 08 01 
+   799 00:0416: FB 05 00 00  				WORD 1531,0,0,272
+       00:041A: 00 00 10 01 
+   800 00:041E: 00 00 00 00  				WORD 0,0,0,280
+       00:0422: 00 00 18 01 
+   801 00:0426: FB 05 00 00  				WORD 1531,0,0,288
+       00:042A: 00 00 20 01 
+   802 00:042E: 00 00 00 00  				WORD 0,0,0,296
+       00:0432: 00 00 28 01 
+   803 00:0436: 00 00 00 00  				WORD 0,0,0,304
+       00:043A: 00 00 30 01 
+   804 00:043E: 00 00 00 00  				WORD 0,0,0,312
+       00:0442: 00 00 38 01 
+   805 00:0446: A8 0A 00 00  				WORD 2728,0,0,320
+       00:044A: 00 00 40 01 
+   806 00:044E: 00 00 00 00  				WORD 0,0,0,328
+       00:0452: 00 00 48 01 
+   807 00:0456: 00 00 00 00  				WORD 0,0,0,336
+       00:045A: 00 00 50 01 
+   808 00:045E: 00 00 00 00  				WORD 0,0,0,344
+       00:0462: 00 00 58 01 
+   809 00:0466: FB 05 00 00  				WORD 1531,0,0,352
+       00:046A: 00 00 60 01 
+   810 00:046E: FB 05 00 00  				WORD 1531,0,0,360
+       00:0472: 00 00 68 01 
+   811 00:0476: 00 00 00 00  				WORD 0,0,0,368
+       00:047A: 00 00 70 01 
+   812 00:047E: 00 00 00 00  				WORD 0,0,0,376
+       00:0482: 00 00 78 01 
+   813 00:0486: FB 05 00 00  				WORD 1531,0,0,384
+       00:048A: 00 00 80 01 
+   814 00:048E: 00 00 00 00  				WORD 0,0,0,392
+       00:0492: 00 00 88 01 
+   815 00:0496: 00 00 00 00  				WORD 0,0,0,400
+       00:049A: 00 00 90 01 
+   816 00:049E: 00 00 00 00  				WORD 0,0,0,408
+       00:04A2: 00 00 98 01 
+   817 00:04A6: A8 0A 00 00  				WORD 2728,0,0,416
+       00:04AA: 00 00 A0 01 
+   818 00:04AE: 00 00 00 00  				WORD 0,0,0,424
+       00:04B2: 00 00 A8 01 
+   819 00:04B6: 00 00 00 00  				WORD 0,0,0,432
+       00:04BA: 00 00 B0 01 
+   820 00:04BE: 00 00 00 00  				WORD 0,0,0,440
+       00:04C2: 00 00 B8 01 
+   821 00:04C6: FB 05 00 00  				WORD 1531,0,0,448
+  Mon Dec 14 2015 11:10                                                Page 24
+
+    "VGA VGA.asm"
+    "VGA"
+
+       00:04CA: 00 00 C0 01 
+   822 00:04CE: FB 05 00 00  				WORD 1531,0,0,456
+       00:04D2: 00 00 C8 01 
+   823 00:04D6: 00 00 00 00  				WORD 0,0,0,464
+       00:04DA: 00 00 D0 01 
+   824 00:04DE: 00 00 00 00  				WORD 0,0,0,472
+       00:04E2: 00 00 D8 01 
+   825 00:04E6: F5 08 00 00  				WORD 2293,0,0,480
+       00:04EA: 00 00 E0 01 
+   826 00:04EE: 00 00 00 00  				WORD 0,0,0,488
+       00:04F2: 00 00 E8 01 
+   827 00:04F6: FB 05 00 00  				WORD 1531,0,0,496
+       00:04FA: 00 00 F0 01 
+   828 00:04FE: 00 00 00 00  				WORD 0,0,0,504
+       00:0502: 00 00 F8 01 
+   829 00:0506: 7A 04 00 00  				WORD 1146,0,0,512
+       00:050A: 00 00 00 02 
+   830 00:050E: 00 00 00 00  				WORD 0,0,0,520
+       00:0512: 00 00 08 02 
+   831 00:0516: 7A 04 00 00  				WORD 1146,0,0,528
+       00:051A: 00 00 10 02 
+   832 00:051E: 00 00 00 00  				WORD 0,0,0,536
+       00:0522: 00 00 18 02 
+   833 00:0526: 7A 04 00 00  				WORD 1146,0,0,544
+       00:052A: 00 00 20 02 
+   834 00:052E: 00 00 00 00  				WORD 0,0,0,552
+       00:0532: 00 00 28 02 
+   835 00:0536: 00 00 00 00  				WORD 0,0,0,560
+       00:053A: 00 00 30 02 
+   836 00:053E: 00 00 00 00  				WORD 0,0,0,568
+       00:0542: 00 00 38 02 
+   837 00:0546: F5 08 00 00  				WORD 2293,0,0,576
+       00:054A: 00 00 40 02 
+   838 00:054E: 00 00 00 00  				WORD 0,0,0,584
+       00:0552: 00 00 48 02 
+   839 00:0556: 00 00 00 00  				WORD 0,0,0,592
+       00:055A: 00 00 50 02 
+   840 00:055E: 00 00 00 00  				WORD 0,0,0,600
+       00:0562: 00 00 58 02 
+   841 00:0566: 7A 04 00 00  				WORD 1146,0,0,608
+       00:056A: 00 00 60 02 
+   842 00:056E: 7A 04 00 00  				WORD 1146,0,0,616
+       00:0572: 00 00 68 02 
+   843 00:0576: 00 00 00 00  				WORD 0,0,0,624
+       00:057A: 00 00 70 02 
+   844 00:057E: 00 00 00 00  				WORD 0,0,0,632
+       00:0582: 00 00 78 02 
+   845 00:0586: 7A 04 00 00  				WORD 1146,0,0,640
+       00:058A: 00 00 80 02 
+   846 00:058E: 00 00 00 00  				WORD 0,0,0,648
+       00:0592: 00 00 88 02 
+   847 00:0596: 00 00 00 00  				WORD 0,0,0,656
+       00:059A: 00 00 90 02 
+   848 00:059E: 00 00 00 00  				WORD 0,0,0,664
+       00:05A2: 00 00 98 02 
+  Mon Dec 14 2015 11:10                                                Page 25
+
+    "VGA VGA.asm"
+    "VGA"
+
+   849 00:05A6: F5 08 00 00  				WORD 2293,0,0,672
+       00:05AA: 00 00 A0 02 
+   850 00:05AE: 00 00 00 00  				WORD 0,0,0,680
+       00:05B2: 00 00 A8 02 
+   851 00:05B6: 00 00 00 00  				WORD 0,0,0,688
+       00:05BA: 00 00 B0 02 
+   852 00:05BE: 00 00 00 00  				WORD 0,0,0,696
+       00:05C2: 00 00 B8 02 
+   853 00:05C6: 7A 04 00 00  				WORD 1146,0,0,704
+       00:05CA: 00 00 C0 02 
+   854 00:05CE: 7A 04 00 00  				WORD 1146,0,0,712
+       00:05D2: 00 00 C8 02 
+   855 00:05D6: 00 00 00 00  				WORD 0,0,0,720
+       00:05DA: 00 00 D0 02 
+   856 00:05DE: 00 00 00 00  				WORD 0,0,0,728
+       00:05E2: 00 00 D8 02 
+   857 00:05E6: F5 08 00 00  				WORD 2293,0,0,736
+       00:05EA: 00 00 E0 02 
+   858 00:05EE: 00 00 00 00  				WORD 0,0,0,744
+       00:05F2: 00 00 E8 02 
+   859 00:05F6: F5 08 00 00  				WORD 2293,0,0,752
+       00:05FA: 00 00 F0 02 
+   860 00:05FE: 00 00 00 00  				WORD 0,0,0,760
+       00:0602: 00 00 F8 02 
+   861 00:0606: FB 07 00 00  				WORD 2043,0,0,768
+       00:060A: 00 00 00 03 
+   862 00:060E: FB 07 00 00  				WORD 2043,0,0,776
+       00:0612: 00 00 08 03 
+   863 00:0616: FB 07 00 00  				WORD 2043,0,0,784
+       00:061A: 00 00 10 03 
+   864 00:061E: 00 00 00 00  				WORD 0,0,0,792
+       00:0622: 00 00 18 03 
+   865 00:0626: FB 07 00 00  				WORD 2043,0,0,800
+       00:062A: 00 00 20 03 
+   866 00:062E: 00 00 00 00  				WORD 0,0,0,808
+       00:0632: 00 00 28 03 
+   867 00:0636: 00 00 00 00  				WORD 0,0,0,816
+       00:063A: 00 00 30 03 
+   868 00:063E: 00 00 00 00  				WORD 0,0,0,824
+       00:0642: 00 00 38 03 
+   869 00:0646: F6 0B 00 00  				WORD 3062,0,0,832
+       00:064A: 00 00 40 03 
+   870 00:064E: 00 00 00 00  				WORD 0,0,0,840
+       00:0652: 00 00 48 03 
+   871 00:0656: 00 00 00 00  				WORD 0,0,0,848
+       00:065A: 00 00 50 03 
+   872 00:065E: 00 00 00 00  				WORD 0,0,0,856
+       00:0662: 00 00 58 03 
+   873 00:0666: FB 07 00 00  				WORD 2043,0,0,864
+       00:066A: 00 00 60 03 
+   874 00:066E: FB 07 00 00  				WORD 2043,0,0,872
+       00:0672: 00 00 68 03 
+   875 00:0676: 00 00 00 00  				WORD 0,0,0,880
+       00:067A: 00 00 70 03 
+   876 00:067E: 00 00 00 00  				WORD 0,0,0,888
+  Mon Dec 14 2015 11:10                                                Page 26
+
+    "VGA VGA.asm"
+    "VGA"
+
+       00:0682: 00 00 78 03 
+   877 00:0686: FB 05 00 00  				WORD 1531,0,0,896
+       00:068A: 00 00 80 03 
+   878 00:068E: 00 00 00 00  				WORD 0,0,0,904
+       00:0692: 00 00 88 03 
+   879 00:0696: 00 00 00 00  				WORD 0,0,0,912
+       00:069A: 00 00 90 03 
+   880 00:069E: 00 00 00 00  				WORD 0,0,0,920
+       00:06A2: 00 00 98 03 
+   881 00:06A6: F6 0B 00 00  				WORD 3062,0,0,928
+       00:06AA: 00 00 A0 03 
+   882 00:06AE: 00 00 00 00  				WORD 0,0,0,936
+       00:06B2: 00 00 A8 03 
+   883 00:06B6: 00 00 00 00  				WORD 0,0,0,944
+       00:06BA: 00 00 B0 03 
+   884 00:06BE: 00 00 00 00  				WORD 0,0,0,952
+       00:06C2: 00 00 B8 03 
+   885 00:06C6: FB 05 00 00  				WORD 1531,0,0,960
+       00:06CA: 00 00 C0 03 
+   886 00:06CE: FB 05 00 00  				WORD 1531,0,0,968
+       00:06D2: 00 00 C8 03 
+   887 00:06D6: 00 00 00 00  				WORD 0,0,0,976
+       00:06DA: 00 00 D0 03 
+   888 00:06DE: 00 00 00 00  				WORD 0,0,0,984
+       00:06E2: 00 00 D8 03 
+   889 00:06E6: F6 0B 00 00  				WORD 3062,0,0,992
+       00:06EA: 00 00 E0 03 
+   890 00:06EE: 00 00 00 00  				WORD 0,0,0,1000
+       00:06F2: 00 00 E8 03 
+   891 00:06F6: F6 0B 00 00  				WORD 3062,0,0,1008
+       00:06FA: 00 00 F0 03 
+   892 00:06FE: 00 00 00 00  				WORD 0,0,0,1016
+       00:0702: 00 00 F8 03 
+   893 00:0706: 7A 04 FB 07  				WORD 1146,2043,0,1024
+       00:070A: 00 00 00 04 
+   894 00:070E: 7A 04 FB 07  				WORD 1146,2043,0,1032
+       00:0712: 00 00 08 04 
+   895 00:0716: 7A 04 00 00  				WORD 1146,0,0,1040
+       00:071A: 00 00 10 04 
+   896 00:071E: 00 00 00 00  				WORD 0,0,0,1048
+       00:0722: 00 00 18 04 
+   897 00:0726: 7A 04 00 00  				WORD 1146,0,0,1056
+       00:072A: 00 00 20 04 
+   898 00:072E: 00 00 00 00  				WORD 0,0,0,1064
+       00:0732: 00 00 28 04 
+   899 00:0736: 00 00 00 00  				WORD 0,0,0,1072
+       00:073A: 00 00 30 04 
+   900 00:073E: 00 00 00 00  				WORD 0,0,0,1080
+       00:0742: 00 00 38 04 
+   901 00:0746: F5 08 5A 19  				WORD 2293,6490,0,1088
+       00:074A: 00 00 40 04 
+   902 00:074E: 00 00 00 00  				WORD 0,0,0,1096
+       00:0752: 00 00 48 04 
+   903 00:0756: 00 00 00 00  				WORD 0,0,0,1104
+       00:075A: 00 00 50 04 
+  Mon Dec 14 2015 11:10                                                Page 27
+
+    "VGA VGA.asm"
+    "VGA"
+
+   904 00:075E: 00 00 00 00  				WORD 0,0,0,1112
+       00:0762: 00 00 58 04 
+   905 00:0766: 7A 04 00 00  				WORD 1146,0,0,1120
+       00:076A: 00 00 60 04 
+   906 00:076E: 7A 04 00 00  				WORD 1146,0,0,1128
+       00:0772: 00 00 68 04 
+   907 00:0776: 00 00 00 00  				WORD 0,0,0,1136
+       00:077A: 00 00 70 04 
+   908 00:077E: 00 00 00 00  				WORD 0,0,0,1144
+       00:0782: 00 00 78 04 
+   909 00:0786: 7A 04 FB 07  				WORD 1146,2043,0,1152
+       00:078A: 00 00 80 04 
+   910 00:078E: 00 00 FB 07  				WORD 0,2043,0,1160
+       00:0792: 00 00 88 04 
+   911 00:0796: 00 00 00 00  				WORD 0,0,0,1168
+       00:079A: 00 00 90 04 
+   912 00:079E: 00 00 00 00  				WORD 0,0,0,1176
+       00:07A2: 00 00 98 04 
+   913 00:07A6: F5 08 FB 07  				WORD 2293,2043,0,1184
+       00:07AA: 00 00 A0 04 
+   914 00:07AE: 00 00 FB 07  				WORD 0,2043,0,1192
+       00:07B2: 00 00 A8 04 
+   915 00:07B6: 00 00 00 00  				WORD 0,0,0,1200
+       00:07BA: 00 00 B0 04 
+   916 00:07BE: 00 00 00 00  				WORD 0,0,0,1208
+       00:07C2: 00 00 B8 04 
+   917 00:07C6: 7A 04 5A 19  				WORD 1146,6490,0,1216
+       00:07CA: 00 00 C0 04 
+   918 00:07CE: 7A 04 00 00  				WORD 1146,0,0,1224
+       00:07D2: 00 00 C8 04 
+   919 00:07D6: 00 00 00 00  				WORD 0,0,0,1232
+       00:07DA: 00 00 D0 04 
+   920 00:07DE: 00 00 00 00  				WORD 0,0,0,1240
+       00:07E2: 00 00 D8 04 
+   921 00:07E6: F5 08 00 00  				WORD 2293,0,0,1248
+       00:07EA: 00 00 E0 04 
+   922 00:07EE: 00 00 00 00  				WORD 0,0,0,1256
+       00:07F2: 00 00 E8 04 
+   923 00:07F6: F5 08 00 00  				WORD 2293,0,0,1264
+       00:07FA: 00 00 F0 04 
+   924 00:07FE: 00 00 00 00  				WORD 0,0,0,1272
+       00:0802: 00 00 F8 04 
+   925 00:0806: FB 05 FB 07  				WORD 1531,2043,0,1280
+       00:080A: 00 00 00 05 
+   926 00:080E: FB 05 FB 07  				WORD 1531,2043,0,1288
+       00:0812: 00 00 08 05 
+   927 00:0816: FB 05 00 00  				WORD 1531,0,0,1296
+       00:081A: 00 00 10 05 
+   928 00:081E: 00 00 00 00  				WORD 0,0,0,1304
+       00:0822: 00 00 18 05 
+   929 00:0826: FB 05 00 00  				WORD 1531,0,0,1312
+       00:082A: 00 00 20 05 
+   930 00:082E: 00 00 00 00  				WORD 0,0,0,1320
+       00:0832: 00 00 28 05 
+   931 00:0836: 00 00 00 00  				WORD 0,0,0,1328
+  Mon Dec 14 2015 11:10                                                Page 28
+
+    "VGA VGA.asm"
+    "VGA"
+
+       00:083A: 00 00 30 05 
+   932 00:083E: 00 00 00 00  				WORD 0,0,0,1336
+       00:0842: 00 00 38 05 
+   933 00:0846: A8 0A 5A 19  				WORD 2728,6490,0,1344
+       00:084A: 00 00 40 05 
+   934 00:084E: 00 00 00 00  				WORD 0,0,0,1352
+       00:0852: 00 00 48 05 
+   935 00:0856: 00 00 00 00  				WORD 0,0,0,1360
+       00:085A: 00 00 50 05 
+   936 00:085E: 00 00 00 00  				WORD 0,0,0,1368
+       00:0862: 00 00 58 05 
+   937 00:0866: FB 05 00 00  				WORD 1531,0,0,1376
+       00:086A: 00 00 60 05 
+   938 00:086E: FB 05 00 00  				WORD 1531,0,0,1384
+       00:0872: 00 00 68 05 
+   939 00:0876: 00 00 00 00  				WORD 0,0,0,1392
+       00:087A: 00 00 70 05 
+   940 00:087E: 00 00 00 00  				WORD 0,0,0,1400
+       00:0882: 00 00 78 05 
+   941 00:0886: FB 05 FB 07  				WORD 1531,2043,0,1408
+       00:088A: 00 00 80 05 
+   942 00:088E: 00 00 FB 07  				WORD 0,2043,0,1416
+       00:0892: 00 00 88 05 
+   943 00:0896: 00 00 00 00  				WORD 0,0,0,1424
+       00:089A: 00 00 90 05 
+   944 00:089E: 00 00 00 00  				WORD 0,0,0,1432
+       00:08A2: 00 00 98 05 
+   945 00:08A6: A8 0A FB 07  				WORD 2728,2043,0,1440
+       00:08AA: 00 00 A0 05 
+   946 00:08AE: 00 00 FB 07  				WORD 0,2043,0,1448
+       00:08B2: 00 00 A8 05 
+   947 00:08B6: 00 00 00 00  				WORD 0,0,0,1456
+       00:08BA: 00 00 B0 05 
+   948 00:08BE: 00 00 00 00  				WORD 0,0,0,1464
+       00:08C2: 00 00 B8 05 
+   949 00:08C6: FB 05 5A 19  				WORD 1531,6490,0,1472
+       00:08CA: 00 00 C0 05 
+   950 00:08CE: FB 05 00 00  				WORD 1531,0,0,1480
+       00:08D2: 00 00 C8 05 
+   951 00:08D6: 00 00 00 00  				WORD 0,0,0,1488
+       00:08DA: 00 00 D0 05 
+   952 00:08DE: 00 00 00 00  				WORD 0,0,0,1496
+       00:08E2: 00 00 D8 05 
+   953 00:08E6: F5 08 5A 19  				WORD 2293,6490,0,1504
+       00:08EA: 00 00 E0 05 
+   954 00:08EE: 00 00 00 00  				WORD 0,0,0,1512
+       00:08F2: 00 00 E8 05 
+   955 00:08F6: FB 05 5A 19  				WORD 1531,6490,0,1520
+       00:08FA: 00 00 F0 05 
+   956 00:08FE: 00 00 00 00  				WORD 0,0,0,1528
+       00:0902: 00 00 F8 05 
+   957 00:0906: 7A 04 FB 07  				WORD 1146,2043,0,1536
+       00:090A: 00 00 00 06 
+   958 00:090E: 00 00 FB 07  				WORD 0,2043,0,1544
+       00:0912: 00 00 08 06 
+  Mon Dec 14 2015 11:10                                                Page 29
+
+    "VGA VGA.asm"
+    "VGA"
+
+   959 00:0916: 7A 04 00 00  				WORD 1146,0,0,1552
+       00:091A: 00 00 10 06 
+   960 00:091E: 00 00 00 00  				WORD 0,0,0,1560
+       00:0922: 00 00 18 06 
+   961 00:0926: 7A 04 00 00  				WORD 1146,0,0,1568
+       00:092A: 00 00 20 06 
+   962 00:092E: 00 00 00 00  				WORD 0,0,0,1576
+       00:0932: 00 00 28 06 
+   963 00:0936: 00 00 00 00  				WORD 0,0,0,1584
+       00:093A: 00 00 30 06 
+   964 00:093E: 00 00 00 00  				WORD 0,0,0,1592
+       00:0942: 00 00 38 06 
+   965 00:0946: F5 08 5A 19  				WORD 2293,6490,0,1600
+       00:094A: 00 00 40 06 
+   966 00:094E: 00 00 00 00  				WORD 0,0,0,1608
+       00:0952: 00 00 48 06 
+   967 00:0956: 00 00 00 00  				WORD 0,0,0,1616
+       00:095A: 00 00 50 06 
+   968 00:095E: 00 00 00 00  				WORD 0,0,0,1624
+       00:0962: 00 00 58 06 
+   969 00:0966: 7A 04 00 00  				WORD 1146,0,0,1632
+       00:096A: 00 00 60 06 
+   970 00:096E: 7A 04 00 00  				WORD 1146,0,0,1640
+       00:0972: 00 00 68 06 
+   971 00:0976: 00 00 00 00  				WORD 0,0,0,1648
+       00:097A: 00 00 70 06 
+   972 00:097E: 00 00 00 00  				WORD 0,0,0,1656
+       00:0982: 00 00 78 06 
+   973 00:0986: 7A 04 FB 07  				WORD 1146,2043,0,1664
+       00:098A: 00 00 80 06 
+   974 00:098E: 00 00 FB 07  				WORD 0,2043,0,1672
+       00:0992: 00 00 88 06 
+   975 00:0996: 00 00 00 00  				WORD 0,0,0,1680
+       00:099A: 00 00 90 06 
+   976 00:099E: 00 00 00 00  				WORD 0,0,0,1688
+       00:09A2: 00 00 98 06 
+   977 00:09A6: F5 08 FB 07  				WORD 2293,2043,0,1696
+       00:09AA: 00 00 A0 06 
+   978 00:09AE: 00 00 FB 07  				WORD 0,2043,0,1704
+       00:09B2: 00 00 A8 06 
+   979 00:09B6: 00 00 00 00  				WORD 0,0,0,1712
+       00:09BA: 00 00 B0 06 
+   980 00:09BE: 00 00 00 00  				WORD 0,0,0,1720
+       00:09C2: 00 00 B8 06 
+   981 00:09C6: 7A 04 5A 19  				WORD 1146,6490,0,1728
+       00:09CA: 00 00 C0 06 
+   982 00:09CE: 7A 04 00 00  				WORD 1146,0,0,1736
+       00:09D2: 00 00 C8 06 
+   983 00:09D6: 00 00 00 00  				WORD 0,0,0,1744
+       00:09DA: 00 00 D0 06 
+   984 00:09DE: 00 00 00 00  				WORD 0,0,0,1752
+       00:09E2: 00 00 D8 06 
+   985 00:09E6: F5 08 00 00  				WORD 2293,0,0,1760
+       00:09EA: 00 00 E0 06 
+   986 00:09EE: 00 00 00 00  				WORD 0,0,0,1768
+  Mon Dec 14 2015 11:10                                                Page 30
+
+    "VGA VGA.asm"
+    "VGA"
+
+       00:09F2: 00 00 E8 06 
+   987 00:09F6: F5 08 00 00  				WORD 2293,0,0,1776
+       00:09FA: 00 00 F0 06 
+   988 00:09FE: 00 00 00 00  				WORD 0,0,0,1784
+       00:0A02: 00 00 F8 06 
+   989 00:0A06: FB 07 FB 07  				WORD 2043,2043,0,1792
+       00:0A0A: 00 00 00 07 
+   990 00:0A0E: FB 07 FB 07  				WORD 2043,2043,0,1800
+       00:0A12: 00 00 08 07 
+   991 00:0A16: FB 07 00 00  				WORD 2043,0,0,1808
+       00:0A1A: 00 00 10 07 
+   992 00:0A1E: 00 00 00 00  				WORD 0,0,0,1816
+       00:0A22: 00 00 18 07 
+   993 00:0A26: FB 07 00 00  				WORD 2043,0,0,1824
+       00:0A2A: 00 00 20 07 
+   994 00:0A2E: 00 00 00 00  				WORD 0,0,0,1832
+       00:0A32: 00 00 28 07 
+   995 00:0A36: 00 00 00 00  				WORD 0,0,0,1840
+       00:0A3A: 00 00 30 07 
+   996 00:0A3E: 00 00 00 00  				WORD 0,0,0,1848
+       00:0A42: 00 00 38 07 
+   997 00:0A46: F6 0B 5A 19  				WORD 3062,6490,0,1856
+       00:0A4A: 00 00 40 07 
+   998 00:0A4E: 00 00 00 00  				WORD 0,0,0,1864
+       00:0A52: 00 00 48 07 
+   999 00:0A56: 00 00 00 00  				WORD 0,0,0,1872
+       00:0A5A: 00 00 50 07 
+  1000 00:0A5E: 00 00 00 00  				WORD 0,0,0,1880
+       00:0A62: 00 00 58 07 
+  1001 00:0A66: FB 07 00 00  				WORD 2043,0,0,1888
+       00:0A6A: 00 00 60 07 
+  1002 00:0A6E: FB 07 00 00  				WORD 2043,0,0,1896
+       00:0A72: 00 00 68 07 
+  1003 00:0A76: 00 00 00 00  				WORD 0,0,0,1904
+       00:0A7A: 00 00 70 07 
+  1004 00:0A7E: 00 00 00 00  				WORD 0,0,0,1912
+       00:0A82: 00 00 78 07 
+  1005 00:0A86: FB 05 FB 07  				WORD 1531,2043,0,1920
+       00:0A8A: 00 00 80 07 
+  1006 00:0A8E: 00 00 FB 07  				WORD 0,2043,0,1928
+       00:0A92: 00 00 88 07 
+  1007 00:0A96: 00 00 00 00  				WORD 0,0,0,1936
+       00:0A9A: 00 00 90 07 
+  1008 00:0A9E: 00 00 00 00  				WORD 0,0,0,1944
+       00:0AA2: 00 00 98 07 
+  1009 00:0AA6: F6 0B 00 00  				WORD 3062,0,0,1952
+       00:0AAA: 00 00 A0 07 
+  1010 00:0AAE: 00 00 00 00  				WORD 0,0,0,1960
+       00:0AB2: 00 00 A8 07 
+  1011 00:0AB6: 00 00 FB 07  				WORD 0,2043,0,1968
+       00:0ABA: 00 00 B0 07 
+  1012 00:0ABE: 00 00 00 00  				WORD 0,0,0,1976
+       00:0AC2: 00 00 B8 07 
+  1013 00:0AC6: FB 05 5A 19  				WORD 1531,6490,0,1984
+       00:0ACA: 00 00 C0 07 
+  Mon Dec 14 2015 11:10                                                Page 31
+
+    "VGA VGA.asm"
+    "VGA"
+
+  1014 00:0ACE: FB 05 00 00  				WORD 1531,0,0,1992
+       00:0AD2: 00 00 C8 07 
+  1015 00:0AD6: 00 00 FB 07  				WORD 0,2043,0,2000
+       00:0ADA: 00 00 D0 07 
+  1016 00:0ADE: 00 00 00 00  				WORD 0,0,0,2008
+       00:0AE2: 00 00 D8 07 
+  1017 00:0AE6: F6 0B 5A 19  				WORD 3062,6490,0,2016
+       00:0AEA: 00 00 E0 07 
+  1018 00:0AEE: 00 00 00 00  				WORD 0,0,0,2024
+       00:0AF2: 00 00 E8 07 
+  1019 00:0AF6: F6 0B 5A 19  				WORD 3062,6490,0,2032
+       00:0AFA: 00 00 F0 07 
+  1020 00:0AFE: 00 00 00 00  				WORD 0,0,0,2040
+       00:0B02: 00 00 F8 07 
+  1021 00:0B06: 7A 04 FB 07  				WORD 1146,2043,0,2040
+       00:0B0A: 00 00 F8 07 
+  1022 00:0B0E: 7A 04 FB 07  				WORD 1146,2043,0,1024
+       00:0B12: 00 00 00 04 
+  1023 00:0B16: 7A 04 00 00  				WORD 1146,0,0,512
+       00:0B1A: 00 00 00 02 
+  1024 00:0B1E: 00 00 00 00  				WORD 0,0,0,256
+       00:0B22: 00 00 00 01 
+  1025 00:0B26: 7A 04 00 00  				WORD 1146,0,0,2040
+       00:0B2A: 00 00 F8 07 
+  1026 00:0B2E: 00 00 00 00  				WORD 0,0,0,1024
+       00:0B32: 00 00 00 04 
+  1027 00:0B36: 00 00 00 00  				WORD 0,0,0,512
+       00:0B3A: 00 00 00 02 
+  1028 00:0B3E: 00 00 00 00  				WORD 0,0,0,256
+       00:0B42: 00 00 00 01 
+  1029 00:0B46: F5 08 5A 19  				WORD 2293,6490,9175,2040
+       00:0B4A: D7 23 F8 07 
+  1030 00:0B4E: 00 00 00 00  				WORD 0,0,9175,1024
+       00:0B52: D7 23 00 04 
+  1031 00:0B56: 00 00 00 00  				WORD 0,0,9175,512
+       00:0B5A: D7 23 00 02 
+  1032 00:0B5E: 00 00 00 00  				WORD 0,0,9175,256
+       00:0B62: D7 23 00 01 
+  1033 00:0B66: 7A 04 00 00  				WORD 1146,0,0,2040
+       00:0B6A: 00 00 F8 07 
+  1034 00:0B6E: 7A 04 00 00  				WORD 1146,0,0,1024
+       00:0B72: 00 00 00 04 
+  1035 00:0B76: 00 00 00 00  				WORD 0,0,0,512
+       00:0B7A: 00 00 00 02 
+  1036 00:0B7E: 00 00 00 00  				WORD 0,0,0,256
+       00:0B82: 00 00 00 01 
+  1037 00:0B86: 7A 04 FB 07  				WORD 1146,2043,9175,2040
+       00:0B8A: D7 23 F8 07 
+  1038 00:0B8E: 00 00 FB 07  				WORD 0,2043,9175,1024
+       00:0B92: D7 23 00 04 
+  1039 00:0B96: 00 00 00 00  				WORD 0,0,0,512
+       00:0B9A: 00 00 00 02 
+  1040 00:0B9E: 00 00 00 00  				WORD 0,0,0,256
+       00:0BA2: 00 00 00 01 
+  1041 00:0BA6: F5 08 FB 07  				WORD 2293,2043,13750,204
+  Mon Dec 14 2015 11:10                                                Page 32
+
+    "VGA VGA.asm"
+    "VGA"
+
+                    0
+       00:0BAA: B6 35 F8 07 
+  1042 00:0BAE: 00 00 FB 07  				WORD 0,2043,13750,1024
+       00:0BB2: B6 35 00 04 
+  1043 00:0BB6: 00 00 00 00  				WORD 0,0,13750,512
+       00:0BBA: B6 35 00 02 
+  1044 00:0BBE: 00 00 00 00  				WORD 0,0,13750,256
+       00:0BC2: B6 35 00 01 
+  1045 00:0BC6: 7A 04 5A 19  				WORD 1146,6490,13750,204
+                    0
+       00:0BCA: B6 35 F8 07 
+  1046 00:0BCE: 7A 04 00 00  				WORD 1146,0,13750,1024
+       00:0BD2: B6 35 00 04 
+  1047 00:0BD6: 00 00 00 00  				WORD 0,0,13750,512
+       00:0BDA: B6 35 00 02 
+  1048 00:0BDE: 00 00 00 00  				WORD 0,0,13750,256
+       00:0BE2: B6 35 00 01 
+  1049 00:0BE6: F5 08 00 00  				WORD 2293,0,13750,2040
+       00:0BEA: B6 35 F8 07 
+  1050 00:0BEE: 00 00 00 00  				WORD 0,0,13750,1024
+       00:0BF2: B6 35 00 04 
+  1051 00:0BF6: F5 08 00 00  				WORD 2293,0,0,2040
+       00:0BFA: 00 00 F8 07 
+  1052 00:0BFE: 00 00 00 00  				WORD 0,0,0,1024
+       00:0C02: 00 00 00 04 
+  1053 00:0C06: FB 05 FB 07  				WORD 1531,2043,6125,2040
+       00:0C0A: ED 17 F8 07 
+  1054 00:0C0E: FB 05 FB 07  				WORD 1531,2043,6125,1024
+       00:0C12: ED 17 00 04 
+  1055 00:0C16: FB 05 00 00  				WORD 1531,0,6125,512
+       00:0C1A: ED 17 00 02 
+  1056 00:0C1E: 00 00 00 00  				WORD 0,0,6125,256
+       00:0C22: ED 17 00 01 
+  1057 00:0C26: FB 05 00 00  				WORD 1531,0,6125,2040
+       00:0C2A: ED 17 F8 07 
+  1058 00:0C2E: 00 00 00 00  				WORD 0,0,6125,1024
+       00:0C32: ED 17 00 04 
+  1059 00:0C36: 00 00 00 00  				WORD 0,0,6125,512
+       00:0C3A: ED 17 00 02 
+  1060 00:0C3E: 00 00 00 00  				WORD 0,0,6125,256
+       00:0C42: ED 17 00 01 
+  1061 00:0C46: A8 0A 5A 19  				WORD 2728,6490,0,2040
+       00:0C4A: 00 00 F8 07 
+  1062 00:0C4E: 00 00 00 00  				WORD 0,0,0,1024
+       00:0C52: 00 00 00 04 
+  1063 00:0C56: 00 00 00 00  				WORD 0,0,0,512
+       00:0C5A: 00 00 00 02 
+  1064 00:0C5E: 00 00 00 00  				WORD 0,0,0,256
+       00:0C62: 00 00 00 01 
+  1065 00:0C66: FB 05 00 00  				WORD 1531,0,0,2040
+       00:0C6A: 00 00 F8 07 
+  1066 00:0C6E: FB 05 00 00  				WORD 1531,0,0,1024
+       00:0C72: 00 00 00 04 
+  1067 00:0C76: 00 00 00 00  				WORD 0,0,0,512
+       00:0C7A: 00 00 00 02 
+  Mon Dec 14 2015 11:10                                                Page 33
+
+    "VGA VGA.asm"
+    "VGA"
+
+  1068 00:0C7E: 00 00 00 00  				WORD 0,0,0,256
+       00:0C82: 00 00 00 01 
+  1069 00:0C86: FB 05 FB 07  				WORD 1531,2043,5457,2040
+       00:0C8A: 51 15 F8 07 
+  1070 00:0C8E: 00 00 FB 07  				WORD 0,2043,5457,1024
+       00:0C92: 51 15 00 04 
+  1071 00:0C96: 00 00 00 00  				WORD 0,0,5457,512
+       00:0C9A: 51 15 00 02 
+  1072 00:0C9E: 00 00 00 00  				WORD 0,0,5457,256
+       00:0CA2: 51 15 00 01 
+  1073 00:0CA6: A8 0A FB 07  				WORD 2728,2043,5457,2040
+       00:0CAA: 51 15 F8 07 
+  1074 00:0CAE: 00 00 FB 07  				WORD 0,2043,5457,1024
+       00:0CB2: 51 15 00 04 
+  1075 00:0CB6: 00 00 00 00  				WORD 0,0,0,512
+       00:0CBA: 00 00 00 02 
+  1076 00:0CBE: 00 00 00 00  				WORD 0,0,0,256
+       00:0CC2: 00 00 00 01 
+  1077 00:0CC6: FB 05 5A 19  				WORD 1531,6490,7717,2040
+       00:0CCA: 25 1E F8 07 
+  1078 00:0CCE: FB 05 00 00  				WORD 1531,0,7717,1024
+       00:0CD2: 25 1E 00 04 
+  1079 00:0CD6: 00 00 00 00  				WORD 0,0,7717,512
+       00:0CDA: 25 1E 00 02 
+  1080 00:0CDE: 00 00 00 00  				WORD 0,0,7717,256
+       00:0CE2: 25 1E 00 01 
+  1081 00:0CE6: F5 08 5A 19  				WORD 2293,6490,0,2040
+       00:0CEA: 00 00 F8 07 
+  1082 00:0CEE: 00 00 00 00  				WORD 0,0,0,1024
+       00:0CF2: 00 00 00 04 
+  1083 00:0CF6: FB 05 5A 19  				WORD 1531,6490,0,2040
+       00:0CFA: 00 00 F8 07 
+  1084 00:0CFE: 00 00 00 00  				WORD 0,0,0,1024
+       00:0D02: 00 00 00 04 
+  1085 00:0D06: 7A 04 FB 07  				WORD 1146,2043,6875,2040
+       00:0D0A: DB 1A F8 07 
+  1086 00:0D0E: 00 00 FB 07  				WORD 0,2043,6875,1024
+       00:0D12: DB 1A 00 04 
+  1087 00:0D16: 7A 04 00 00  				WORD 1146,0,6875,2040
+       00:0D1A: DB 1A F8 07 
+  1088 00:0D1E: 00 00 00 00  				WORD 0,0,6875,1024
+       00:0D22: DB 1A 00 04 
+  1089 00:0D26: 7A 04 00 00  				WORD 1146,0,6875,2040
+       00:0D2A: DB 1A F8 07 
+  1090 00:0D2E: 00 00 00 00  				WORD 0,0,6875,1024
+       00:0D32: DB 1A 00 04 
+  1091 00:0D36: 00 00 00 00  				WORD 0,0,6875,512
+       00:0D3A: DB 1A 00 02 
+  1092 00:0D3E: 00 00 00 00  				WORD 0,0,6875,256
+       00:0D42: DB 1A 00 01 
+  1093 00:0D46: F5 08 5A 19  				WORD 2293,6490,6875,2040
+       00:0D4A: DB 1A F8 07 
+  1094 00:0D4E: 00 00 00 00  				WORD 0,0,0,1024
+       00:0D52: 00 00 00 04 
+  1095 00:0D56: 00 00 00 00  				WORD 0,0,0,512
+  Mon Dec 14 2015 11:10                                                Page 34
+
+    "VGA VGA.asm"
+    "VGA"
+
+       00:0D5A: 00 00 00 02 
+  1096 00:0D5E: 00 00 00 00  				WORD 0,0,0,256
+       00:0D62: 00 00 00 01 
+  1097 00:0D66: 7A 04 00 00  				WORD 1146,0,6125,2040
+       00:0D6A: ED 17 F8 07 
+  1098 00:0D6E: 7A 04 00 00  				WORD 1146,0,6125,1024
+       00:0D72: ED 17 00 04 
+  1099 00:0D76: 00 00 00 00  				WORD 0,0,6125,512
+       00:0D7A: ED 17 00 02 
+  1100 00:0D7E: 00 00 00 00  				WORD 0,0,6125,256
+       00:0D82: ED 17 00 01 
+  1101 00:0D86: 7A 04 FB 07  				WORD 1146,2043,0,2040
+       00:0D8A: 00 00 F8 07 
+  1102 00:0D8E: 00 00 FB 07  				WORD 0,2043,0,1024
+       00:0D92: 00 00 00 04 
+  1103 00:0D96: 00 00 00 00  				WORD 0,0,0,512
+       00:0D9A: 00 00 00 02 
+  1104 00:0D9E: 00 00 00 00  				WORD 0,0,0,256
+       00:0DA2: 00 00 00 01 
+  1105 00:0DA6: F5 08 FB 07  				WORD 2293,2043,5457,2040
+       00:0DAA: 51 15 F8 07 
+  1106 00:0DAE: 00 00 FB 07  				WORD 0,2043,5457,1024
+       00:0DB2: 51 15 00 04 
+  1107 00:0DB6: 00 00 00 00  				WORD 0,0,5457,512
+       00:0DBA: 51 15 00 02 
+  1108 00:0DBE: 00 00 00 00  				WORD 0,0,5457,256
+       00:0DC2: 51 15 00 01 
+  1109 00:0DC6: 7A 04 5A 19  				WORD 1146,6490,0,2040
+       00:0DCA: 00 00 F8 07 
+  1110 00:0DCE: 7A 04 00 00  				WORD 1146,0,0,1024
+       00:0DD2: 00 00 00 04 
+  1111 00:0DD6: 00 00 00 00  				WORD 0,0,0,512
+       00:0DDA: 00 00 00 02 
+  1112 00:0DDE: 00 00 00 00  				WORD 0,0,0,256
+       00:0DE2: 00 00 00 01 
+  1113 00:0DE6: F5 08 00 00  				WORD 2293,0,8175,2040
+       00:0DEA: EF 1F F8 07 
+  1114 00:0DEE: 00 00 00 00  				WORD 0,0,8175,1024
+       00:0DF2: EF 1F 00 04 
+  1115 00:0DF6: F5 08 00 00  				WORD 2293,0,0,2040
+       00:0DFA: 00 00 F8 07 
+  1116 00:0DFE: 00 00 00 00  				WORD 0,0,0,1024
+       00:0E02: 00 00 00 04 
+  1117 00:0E06: FB 07 FB 07  				WORD 2043,2043,9175,2040
+       00:0E0A: D7 23 F8 07 
+  1118 00:0E0E: FB 07 FB 07  				WORD 2043,2043,9175,1024
+       00:0E12: D7 23 00 04 
+  1119 00:0E16: FB 07 00 00  				WORD 2043,0,9175,512
+       00:0E1A: D7 23 00 02 
+  1120 00:0E1E: 00 00 00 00  				WORD 0,0,9175,256
+       00:0E22: D7 23 00 01 
+  1121 00:0E26: FB 07 FB 07  				WORD 2043,2043,9175,2040
+       00:0E2A: D7 23 F8 07 
+  1122 00:0E2E: 00 00 FB 07  				WORD 0,2043,9175,1024
+       00:0E32: D7 23 00 04 
+  Mon Dec 14 2015 11:10                                                Page 35
+
+    "VGA VGA.asm"
+    "VGA"
+
+  1123 00:0E36: 00 00 00 00  				WORD 0,0,0,512
+       00:0E3A: 00 00 00 02 
+  1124 00:0E3E: 00 00 00 00  				WORD 0,0,0,256
+       00:0E42: 00 00 00 01 
+  1125 00:0E46: F6 0B 5A 19  				WORD 3062,6490,9175,1024
+       00:0E4A: D7 23 00 04 
+  1126 00:0E4E: 00 00 00 00  				WORD 0,0,9175,512
+       00:0E52: D7 23 00 02 
+  1127 00:0E56: 00 00 00 00  				WORD 0,0,0,256
+       00:0E5A: 00 00 00 01 
+  1128 00:0E5E: 00 00 00 00  				WORD 0,0,0,128
+       00:0E62: 00 00 80 00 
+  1129 00:0E66: FB 07 00 00  				WORD 2043,0,0,2040
+       00:0E6A: 00 00 F8 07 
+  1130 00:0E6E: FB 07 00 00  				WORD 2043,0,0,1024
+       00:0E72: 00 00 00 04 
+  1131 00:0E76: 00 00 00 00  				WORD 0,0,0,512
+       00:0E7A: 00 00 00 02 
+  1132 00:0E7E: 00 00 00 00  				WORD 0,0,0,256
+       00:0E82: 00 00 00 01 
+  1133 00:0E86: FB 05 FB 07  				WORD 1531,2043,10915,204
+                    0
+       00:0E8A: A3 2A F8 07 
+  1134 00:0E8E: 00 00 FB 07  				WORD 0,2043,10915,1024
+       00:0E92: A3 2A 00 04 
+  1135 00:0E96: 00 00 00 00  				WORD 0,0,10915,512
+       00:0E9A: A3 2A 00 02 
+  1136 00:0E9E: 00 00 00 00  				WORD 0,0,10915,256
+       00:0EA2: A3 2A 00 01 
+  1137 00:0EA6: F6 0B 00 00  				WORD 3062,0,0,2040
+       00:0EAA: 00 00 F8 07 
+  1138 00:0EAE: 00 00 00 00  				WORD 0,0,0,1024
+       00:0EB2: 00 00 00 04 
+  1139 00:0EB6: 00 00 00 00  				WORD 0,0,0,512
+       00:0EBA: 00 00 00 02 
+  1140 00:0EBE: 00 00 00 00  				WORD 0,0,0,256
+       00:0EC2: 00 00 00 01 
+  1141 00:0EC6: FB 05 5A 19  				WORD 1531,6490,10300,204
+                    0
+       00:0ECA: 3C 28 F8 07 
+  1142 00:0ECE: FB 05 00 00  				WORD 1531,0,10300,1024
+       00:0ED2: 3C 28 00 04 
+  1143 00:0ED6: 00 00 FB 07  				WORD 0,2043,10300,512
+       00:0EDA: 3C 28 00 02 
+  1144 00:0EDE: 00 00 00 00  				WORD 0,0,10300,256
+       00:0EE2: 3C 28 00 01 
+  1145 00:0EE6: F6 0B 5A 19  				WORD 3062,6490,10300,204
+                    0
+       00:0EEA: 3C 28 F8 07 
+  1146 00:0EEE: 00 00 00 00  				WORD 0,0,10300,1024
+       00:0EF2: 3C 28 00 04 
+  1147 00:0EF6: F6 0B 5A 19  				WORD 3062,6490,10300,204
+                    0
+       00:0EFA: 3C 28 F8 07 
+  1148 00:0EFE: 00 00 00 00  				WORD 0,0,10300,1024
+  Mon Dec 14 2015 11:10                                                Page 36
+
+    "VGA VGA.asm"
+    "VGA"
+
+       00:0F02: 3C 28 00 04 
+  1149 00:0F06: 7A 04 FB 07  				WORD 1146,2043,10300,102
+                    4
+       00:0F0A: 3C 28 00 04 
+  1150 00:0F0E: 7A 04 FB 07  				WORD 1146,2043,10300,512
+       00:0F12: 3C 28 00 02 
+  1151 00:0F16: 7A 04 00 00  				WORD 1146,0,0,256
+       00:0F1A: 00 00 00 01 
+  1152 00:0F1E: 00 00 00 00  				WORD 0,0,0,128
+       00:0F22: 00 00 80 00 
+  1153 00:0F26: 7A 04 00 00  				WORD 1146,0,6875,1024
+       00:0F2A: DB 1A 00 04 
+  1154 00:0F2E: 00 00 00 00  				WORD 0,0,6875,512
+       00:0F32: DB 1A 00 02 
+  1155 00:0F36: 00 00 00 00  				WORD 0,0,6875,256
+       00:0F3A: DB 1A 00 01 
+  1156 00:0F3E: 00 00 00 00  				WORD 0,0,6875,128
+       00:0F42: DB 1A 80 00 
+  1157 00:0F46: F5 08 5A 19  				WORD 2293,6490,11560,102
+                    4
+       00:0F4A: 28 2D 00 04 
+  1158 00:0F4E: 00 00 00 00  				WORD 0,0,10915,512
+       00:0F52: A3 2A 00 02 
+  1159 00:0F56: 00 00 00 00  				WORD 0,0,0,256
+       00:0F5A: 00 00 00 01 
+  1160 00:0F5E: 00 00 00 00  				WORD 0,0,0,128
+       00:0F62: 00 00 80 00 
+  1161 00:0F66: 7A 04 00 00  				WORD 1146,0,6875,1024
+       00:0F6A: DB 1A 00 04 
+  1162 00:0F6E: 7A 04 00 00  				WORD 1146,0,6875,512
+       00:0F72: DB 1A 00 02 
+  1163 00:0F76: 00 00 00 00  				WORD 0,0,0,256
+       00:0F7A: 00 00 00 01 
+  1164 00:0F7E: 00 00 00 00  				WORD 0,0,0,128
+       00:0F82: 00 00 80 00 
+  1165 00:0F86: 7A 04 FB 07  				WORD 1146,2043,10915,102
+                    4
+       00:0F8A: A3 2A 00 04 
+  1166 00:0F8E: 00 00 FB 07  				WORD 0,2043,10300,512
+       00:0F92: 3C 28 00 02 
+  1167 00:0F96: 00 00 00 00  				WORD 0,0,0,256
+       00:0F9A: 00 00 00 01 
+  1168 00:0F9E: 00 00 00 00  				WORD 0,0,0,128
+       00:0FA2: 00 00 80 00 
+  1169 00:0FA6: F5 08 FB 07  				WORD 2293,2043,10915,102
+                    4
+       00:0FAA: A3 2A 00 04 
+  1170 00:0FAE: 00 00 FB 07  				WORD 0,2043,10915,512
+       00:0FB2: A3 2A 00 02 
+  1171 00:0FB6: 00 00 00 00  				WORD 0,0,0,256
+       00:0FBA: 00 00 00 01 
+  1172 00:0FBE: 00 00 00 00  				WORD 0,0,0,128
+       00:0FC2: 00 00 80 00 
+  1173 00:0FC6: 7A 04 5A 19  				WORD 1146,6490,6875,1024
+       00:0FCA: DB 1A 00 04 
+  Mon Dec 14 2015 11:10                                                Page 37
+
+    "VGA VGA.asm"
+    "VGA"
+
+  1174 00:0FCE: 7A 04 00 00  				WORD 1146,0,6875,512
+       00:0FD2: DB 1A 00 02 
+  1175 00:0FD6: 00 00 00 00  				WORD 0,0,6875,256
+       00:0FDA: DB 1A 00 01 
+  1176 00:0FDE: 00 00 00 00  				WORD 0,0,6875,128
+       00:0FE2: DB 1A 80 00 
+  1177 00:0FE6: F5 08 00 00  				WORD 2293,0,6875,1024
+       00:0FEA: DB 1A 00 04 
+  1178 00:0FEE: 00 00 00 00  				WORD 0,0,6875,512
+       00:0FF2: DB 1A 00 02 
+  1179 00:0FF6: F5 08 00 00  				WORD 2293,0,0,256
+       00:0FFA: 00 00 00 01 
+  1180 00:0FFE: 00 00 00 00  				WORD 0,0,0,128
+       00:1002: 00 00 80 00 
+  1181 00:1006: FB 05 FB 07  				WORD 1531,2043,8175,1024
+       00:100A: EF 1F 00 04 
+  1182 00:100E: FB 05 FB 07  				WORD 1531,2043,8175,512
+       00:1012: EF 1F 00 02 
+  1183 00:1016: FB 05 00 00  				WORD 1531,0,8175,256
+       00:101A: EF 1F 00 01 
+  1184 00:101E: 00 00 00 00  				WORD 0,0,8175,128
+       00:1022: EF 1F 80 00 
+  1185 00:1026: FB 05 00 00  				WORD 1531,0,8175,1024
+       00:102A: EF 1F 00 04 
+  1186 00:102E: 00 00 00 00  				WORD 0,0,8175,512
+       00:1032: EF 1F 00 02 
+  1187 00:1036: 00 00 00 00  				WORD 0,0,8175,256
+       00:103A: EF 1F 00 01 
+  1188 00:103E: 00 00 00 00  				WORD 0,0,8175,128
+       00:1042: EF 1F 80 00 
+  1189 00:1046: A8 0A 5A 19  				WORD 2728,6490,8175,1024
+       00:104A: EF 1F 00 04 
+  1190 00:104E: 00 00 00 00  				WORD 0,0,0,512
+       00:1052: 00 00 00 02 
+  1191 00:1056: 00 00 00 00  				WORD 0,0,0,256
+       00:105A: 00 00 00 01 
+  1192 00:105E: 00 00 00 00  				WORD 0,0,0,128
+       00:1062: 00 00 80 00 
+  1193 00:1066: FB 05 00 00  				WORD 1531,0,0,1024
+       00:106A: 00 00 00 04 
+  1194 00:106E: FB 05 00 00  				WORD 1531,0,0,512
+       00:1072: 00 00 00 02 
+  1195 00:1076: 00 00 00 00  				WORD 0,0,0,256
+       00:107A: 00 00 00 01 
+  1196 00:107E: 00 00 00 00  				WORD 0,0,0,128
+       00:1082: 00 00 80 00 
+  1197 00:1086: FB 05 FB 07  				WORD 1531,2043,7717,1024
+       00:108A: 25 1E 00 04 
+  1198 00:108E: 00 00 FB 07  				WORD 0,2043,7717,512
+       00:1092: 25 1E 00 02 
+  1199 00:1096: 00 00 00 00  				WORD 0,0,0,256
+       00:109A: 00 00 00 01 
+  1200 00:109E: 00 00 00 00  				WORD 0,0,0,128
+       00:10A2: 00 00 80 00 
+  1201 00:10A6: A8 0A FB 07  				WORD 2728,2043,0,1024
+  Mon Dec 14 2015 11:10                                                Page 38
+
+    "VGA VGA.asm"
+    "VGA"
+
+       00:10AA: 00 00 00 04 
+  1202 00:10AE: 00 00 FB 07  				WORD 0,2043,0,512
+       00:10B2: 00 00 00 02 
+  1203 00:10B6: 00 00 00 00  				WORD 0,0,0,256
+       00:10BA: 00 00 00 01 
+  1204 00:10BE: 00 00 00 00  				WORD 0,0,0,128
+       00:10C2: 00 00 80 00 
+  1205 00:10C6: FB 05 5A 19  				WORD 1531,6490,6125,1024
+       00:10CA: ED 17 00 04 
+  1206 00:10CE: FB 05 00 00  				WORD 1531,0,6125,512
+       00:10D2: ED 17 00 02 
+  1207 00:10D6: 00 00 00 00  				WORD 0,0,0,256
+       00:10DA: 00 00 00 01 
+  1208 00:10DE: 00 00 00 00  				WORD 0,0,0,128
+       00:10E2: 00 00 80 00 
+  1209 00:10E6: F5 08 5A 19  				WORD 2293,6490,0,1024
+       00:10EA: 00 00 00 04 
+  1210 00:10EE: 00 00 00 00  				WORD 0,0,0,512
+       00:10F2: 00 00 00 02 
+  1211 00:10F6: FB 05 5A 19  				WORD 1531,6490,0,1024
+       00:10FA: 00 00 00 04 
+  1212 00:10FE: 00 00 00 00  				WORD 0,0,0,512
+       00:1102: 00 00 00 02 
+  1213 00:1106: 7A 04 FB 07  				WORD 1146,2043,9175,2040
+       00:110A: D7 23 F8 07 
+  1214 00:110E: 00 00 FB 07  				WORD 0,2043,9175,512
+       00:1112: D7 23 00 02 
+  1215 00:1116: 7A 04 00 00  				WORD 1146,0,9175,2040
+       00:111A: D7 23 F8 07 
+  1216 00:111E: 00 00 00 00  				WORD 0,0,9175,512
+       00:1122: D7 23 00 02 
+  1217 00:1126: 7A 04 00 00  				WORD 1146,0,9175,2040
+       00:112A: D7 23 F8 07 
+  1218 00:112E: 00 00 00 00  				WORD 0,0,9175,1024
+       00:1132: D7 23 00 04 
+  1219 00:1136: 00 00 00 00  				WORD 0,0,9175,512
+       00:113A: D7 23 00 02 
+  1220 00:113E: 00 00 00 00  				WORD 0,0,9175,256
+       00:1142: D7 23 00 01 
+  1221 00:1146: F5 08 5A 19  				WORD 2293,6490,9175,128
+       00:114A: D7 23 80 00 
+  1222 00:114E: 00 00 00 00  				WORD 0,0,9175,64
+       00:1152: D7 23 40 00 
+  1223 00:1156: 00 00 00 00  				WORD 0,0,9175,32
+       00:115A: D7 23 20 00 
+  1224 00:115E: 00 00 00 00  				WORD 0,0,9175,16
+       00:1162: D7 23 10 00 
+  1225 00:1166: 7A 04 00 00  				WORD 1146,0,0,16
+       00:116A: 00 00 10 00 
+  1226 00:116E: 7A 04 00 00  				WORD 1146,0,0,32
+       00:1172: 00 00 20 00 
+  1227 00:1176: 00 00 00 00  				WORD 0,0,0,128
+       00:117A: 00 00 80 00 
+  1228 00:117E: 00 00 00 00  				WORD 0,0,0,256
+       00:1182: 00 00 00 01 
+  Mon Dec 14 2015 11:10                                                Page 39
+
+    "VGA VGA.asm"
+    "VGA"
+
+  1229 00:1186: 7A 04 FB 07  				WORD 1146,2043,0,512
+       00:118A: 00 00 00 02 
+  1230 00:118E: 00 00 FB 07  				WORD 0,2043,0,1024
+       00:1192: 00 00 00 04 
+  1231 00:1196: 00 00 00 00  				WORD 0,0,0,1536
+       00:119A: 00 00 00 06 
+  1232 00:119E: 00 00 00 00  				WORD 0,0,0,2040
+       00:11A2: 00 00 F8 07 
+  1233 00:11A6: F5 08 FB 07  				WORD 2293,2043,7285,2040
+       00:11AA: 75 1C F8 07 
+  1234 00:11AE: 00 00 FB 07  				WORD 0,2043,6875,1536
+       00:11B2: DB 1A 00 06 
+  1235 00:11B6: 00 00 00 00  				WORD 0,0,6875,1200
+       00:11BA: DB 1A B0 04 
+  1236 00:11BE: 00 00 00 00  				WORD 0,0,6875,960
+       00:11C2: DB 1A C0 03 
+  1237 00:11C6: 7A 04 5A 19  				WORD 1146,6490,0,800
+       00:11CA: 00 00 20 03 
+  1238 00:11CE: 7A 04 00 00  				WORD 1146,0,0,640
+       00:11D2: 00 00 80 02 
+  1239 00:11D6: 00 00 00 00  				WORD 0,0,6490,800
+       00:11DA: 5A 19 20 03 
+  1240 00:11DE: 00 00 00 00  				WORD 0,0,6125,960
+       00:11E2: ED 17 C0 03 
+  1241 00:11E6: F5 08 00 00  				WORD 2293,0,6125,1200
+       00:11EA: ED 17 B0 04 
+  1242 00:11EE: 00 00 00 00  				WORD 0,0,6125,1536
+       00:11F2: ED 17 00 06 
+  1243 00:11F6: F5 08 00 00  				WORD 2293,0,0,1840
+       00:11FA: 00 00 30 07 
+  1244 00:11FE: 00 00 00 00  				WORD 0,0,0,2040
+       00:1202: 00 00 F8 07 
+  1245 00:1206: FB 07 FB 07  				WORD 2043,2043,7285,2040
+       00:120A: 75 1C F8 07 
+  1246 00:120E: FB 07 FB 07  				WORD 2043,2043,6875,1984
+       00:1212: DB 1A C0 07 
+  1247 00:1216: FB 07 00 00  				WORD 2043,0,6875,1920
+       00:121A: DB 1A 80 07 
+  1248 00:121E: 00 00 00 00  				WORD 0,0,6875,1856
+       00:1222: DB 1A 40 07 
+  1249 00:1226: FB 07 FB 07  				WORD 2043,2043,6875,1792
+       00:122A: DB 1A 00 07 
+  1250 00:122E: 00 00 FB 07  				WORD 0,2043,0,1728
+       00:1232: 00 00 C0 06 
+  1251 00:1236: 00 00 00 00  				WORD 0,0,0,1664
+       00:123A: 00 00 80 06 
+  1252 00:123E: 00 00 00 00  				WORD 0,0,0,1600
+       00:1242: 00 00 40 06 
+  1253 00:1246: F6 0B 5A 19  				WORD 3062,6490,8175,1536
+       00:124A: EF 1F 00 06 
+  1254 00:124E: 00 00 00 00  				WORD 0,0,8175,1472
+       00:1252: EF 1F C0 05 
+  1255 00:1256: 00 00 00 00  				WORD 0,0,0,1408
+       00:125A: 00 00 80 05 
+  1256 00:125E: 00 00 00 00  				WORD 0,0,0,1344
+  Mon Dec 14 2015 11:10                                                Page 40
+
+    "VGA VGA.asm"
+    "VGA"
+
+       00:1262: 00 00 40 05 
+  1257 00:1266: FB 07 00 00  				WORD 2043,0,6490,1280
+       00:126A: 5A 19 00 05 
+  1258 00:126E: FB 07 00 00  				WORD 2043,0,6125,1216
+       00:1272: ED 17 C0 04 
+  1259 00:1276: 00 00 00 00  				WORD 0,0,6125,1152
+       00:127A: ED 17 80 04 
+  1260 00:127E: 00 00 00 00  				WORD 0,0,6125,1088
+       00:1282: ED 17 40 04 
+  1261 00:1286: FB 05 FB 07  				WORD 1531,2043,0,1024
+       00:128A: 00 00 00 04 
+  1262 00:128E: 00 00 FB 07  				WORD 0,2043,0,960
+       00:1292: 00 00 C0 03 
+  1263 00:1296: 00 00 00 00  				WORD 0,0,0,896
+       00:129A: 00 00 80 03 
+  1264 00:129E: 00 00 00 00  				WORD 0,0,0,832
+       00:12A2: 00 00 40 03 
+  1265 00:12A6: F6 0B 00 00  				WORD 3062,0,6125,768
+       00:12AA: ED 17 00 03 
+  1266 00:12AE: 00 00 00 00  				WORD 0,0,6125,704
+       00:12B2: ED 17 C0 02 
+  1267 00:12B6: 00 00 00 00  				WORD 0,0,0,640
+       00:12BA: 00 00 80 02 
+  1268 00:12BE: 00 00 00 00  				WORD 0,0,0,576
+       00:12C2: 00 00 40 02 
+  1269 00:12C6: FB 05 5A 19  				WORD 1531,6490,5457,512
+       00:12CA: 51 15 00 02 
+  1270 00:12CE: FB 05 00 00  				WORD 1531,0,5457,448
+       00:12D2: 51 15 C0 01 
+  1271 00:12D6: 00 00 FB 07  				WORD 0,2043,0,384
+       00:12DA: 00 00 80 01 
+  1272 00:12DE: 00 00 00 00  				WORD 0,0,0,320
+       00:12E2: 00 00 40 01 
+  1273 00:12E6: F6 0B 5A 19  				WORD 3062,6490,4087,256
+       00:12EA: F7 0F 00 01 
+  1274 00:12EE: 00 00 00 00  				WORD 0,0,4087,192
+       00:12F2: F7 0F C0 00 
+  1275 00:12F6: F6 0B 5A 19  				WORD 3062,6490,4087,128
+       00:12FA: F7 0F 80 00 
+  1276 00:12FE: 00 00 00 00  				WORD 0,0,4087,64
+       00:1302: F7 0F 40 00 
+  1277 00:1306: FF           				BYTE 255
+  1278                        
+  1279                        				
+  1280 00:1307:              	ENDS
+  1281                        
+  1282                        ;-----------------------------
+  1283                        ;
+  1284                        ;		Reset and Interrupt Vectors (define for 
+                    265, 816/02 are subsets)
+  1285                        ;
+  1286                        ;-----------------------------
+  1287                        
+  1288                        Shadow_VECTORS	SECTION OFFSET $7EE0
+  1289                        							
+  Mon Dec 14 2015 11:10                                                Page 41
+
+    "VGA VGA.asm"
+    "VGA"
+
+                    	;65C816 Interrupt Vectors
+  1290                        							
+                    	;Status bit E = 0 (Native mode, 16 bit mode)
+  1291 00:7EE0: 6D 05        				DW badVec		
+                    ; $FFE0 - IRQRVD4(816)
+  1292 00:7EE2: 6D 05        				DW badVec		
+                    ; $FFE2 - IRQRVD5(816)
+  1293 00:7EE4: 6D 05        				DW badVec		
+                    ; $FFE4 - COP(816)
+  1294 00:7EE6: 6D 05        				DW badVec		
+                    ; $FFE6 - BRK(816)
+  1295 00:7EE8: 6D 05        				DW badVec		
+                    ; $FFE8 - ABORT(816)
+  1296 00:7EEA: 6D 05        				DW badVec		
+                    ; $FFEA - NMI(816)
+  1297 00:7EEC: 6D 05        				DW badVec		
+                    ; $FFEC - IRQRVD(816)
+  1298 00:7EEE: 6D 05        				DW badVec		
+                    ; $FFEE - IRQ(816)
+  1299                        							
+                    	;Status bit E = 1 (Emulation mode, 8 bit mode)
+  1300 00:7EF0: 6D 05        				DW badVec		
+                    ; $FFF0 - IRQRVD2(8 bit Emulation)(IRQRVD(265))
+  1301 00:7EF2: 6D 05        				DW badVec		
+                    ; $FFF2 - IRQRVD1(8 bit Emulation)(IRQRVD(265))
+  1302 00:7EF4: 6D 05        				DW badVec		
+                    ; $FFF4 - COP(8 bit Emulation)
+  1303 00:7EF6: 6D 05        				DW badVec   	; $FFF6 
+                    - IRQRVD0(8 bit Emulation)(IRQRVD(265))
+  1304 00:7EF8: 6D 05        				DW badVec		
+                    ; $FFF8 - ABORT(8 bit Emulation)
+  1305                        							
+                    	; Common 8 bit Vectors for all CPUs
+  1306 00:7EFA: 6D 05        				DW badVec		
+                    ; $FFFA -  NMIRQ (ALL)
+  1307 00:7EFC: 00 02        				DW START		
+                    ; $FFFC -  RESET (ALL)
+  1308 00:7EFE: 6A 05        				DW IRQHandler	; $FFFE 
+                    -  IRQBRK (ALL)
+  1309 00:7F00:              	ENDS
+  1310                        
+  1311                        vectors	SECTION OFFSET $FFE0
+  1312                        							
+                    	;65C816 Interrupt Vectors
+  1313                        							
+                    	;Status bit E = 0 (Native mode, 16 bit mode)
+  1314 00:FFE0: 6D 05        				DW badVec		
+                    ; $FFE0 - IRQRVD4(816)
+  1315 00:FFE2: 6D 05        				DW badVec		
+                    ; $FFE2 - IRQRVD5(816)
+  1316 00:FFE4: 6D 05        				DW badVec		
+                    ; $FFE4 - COP(816)
+  1317 00:FFE6: 6D 05        				DW badVec		
+                    ; $FFE6 - BRK(816)
+  1318 00:FFE8: 6D 05        				DW badVec		
+  Mon Dec 14 2015 11:10                                                Page 42
+
+    "VGA VGA.asm"
+    "VGA"
+
+                    ; $FFE8 - ABORT(816)
+  1319 00:FFEA: 6D 05        				DW badVec		
+                    ; $FFEA - NMI(816)
+  1320 00:FFEC: 6D 05        				DW badVec		
+                    ; $FFEC - IRQRVD(816)
+  1321 00:FFEE: 6D 05        				DW badVec		
+                    ; $FFEE - IRQ(816)
+  1322                        							
+                    	;Status bit E = 1 (Emulation mode, 8 bit mode)
+  1323 00:FFF0: 6D 05        				DW badVec		
+                    ; $FFF0 - IRQRVD2(8 bit Emulation)(IRQRVD(265))
+  1324 00:FFF2: 6D 05        				DW badVec		
+                    ; $FFF2 - IRQRVD1(8 bit Emulation)(IRQRVD(265))
+  1325 00:FFF4: 6D 05        				DW badVec		
+                    ; $FFF4 - COP(8 bit Emulation)
+  1326 00:FFF6: 6D 05        				DW badVec		
+                    ; $FFF6 - IRQRVD0(8 bit Emulation)(IRQRVD(265))
+  1327 00:FFF8: 6D 05        				DW badVec		
+                    ; $FFF8 - ABORT(8 bit Emulation)
+  1328                        							
+                    	; Common 8 bit Vectors for all CPUs
+  1329 00:FFFA: 6D 05        				DW badVec		
+                    ; $FFFA -  NMIRQ (ALL)
+  1330 00:FFFC: 00 02        				DW START		
+                    ; $FFFC -  RESET (ALL)
+  1331 00:FFFE: 6A 05        				DW IRQHandler	; $FFFE 
+                    -  IRQBRK (ALL)
+  1332 01:0000:              	ENDS
+  1333                        	END
+
+
+      Lines assembled: 1333
+      Errors: 0

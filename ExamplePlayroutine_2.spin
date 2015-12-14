@@ -12,7 +12,11 @@ CON _clkmode = xtal1 + pll16x
 OBJ
   SID : "SIDcog"
 
+  pst   : "parallax serial terminal"     
+
 PUB Main | i, note, channel, musicPointer
+
+  pst.start(38400)  
 
   SID.start(rightPin, leftPin)           'Start the emulated SID chip in one cog 
   SID.resetRegisters                     'Reset all SID registers
@@ -40,19 +44,32 @@ PUB Main | i, note, channel, musicPointer
   repeat
     waitcnt(cnt + (clkfreq/playRate))
 
+    pst.Str(string("Data: "))
+
     repeat channel from 0 to 2
       note := music[++musicPointer]
       
       if note == 255                            ' Restart tune if note = 255   
         note := music[musicPointer := 0]
+        pst.char(13)
+        pst.char(13)
+        pst.char(13)
  
       if note                                   ' Note on if note > 0   
         SID.noteOn(channel, note2freq(note))
+        pst.dec(note2freq(note))
+        pst.Str(string(" ,"))        
       else
         SID.noteOff(channel)                    ' Note off if note = 0
+        pst.dec(note)
+        pst.Str(string(" ,"))        
+
+
 
     note := music[++musicPointer]<<3
     SID.setCutoff(note)     ' Update cutoff frequency
+    pst.dec(note)
+    pst.char(13)
       
 PUB note2freq(note) | octave
     octave := note/12
